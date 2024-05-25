@@ -147,12 +147,23 @@ struct rpc_msg {
 
 typedef struct rpc_msg rpc_msg_t;
 
+struct rpc_header {
+	u32_t data;
+};
+
+typedef struct rpc_header rpc_header_t;
+
 #pragma pack(pop)
 
 #define	acpted_rply	ru.RM_rmb.ru.RP_ar
 #define	rjcted_rply	ru.RM_rmb.ru.RP_dr
 
-err_t rpc_netconn_call(void* data, u16_t len, rpc_msg_t* rcp_msg);
-err_t rpc_netconn_reply(rpc_msg_t* call, rpc_msg_t* replay, u_char accepted);
+#define RPC_HEADER_SIZE		4UL
+#define RPC_HEADER_LAST		0x80000000
+
+
+err_t rpc_udp_call(void* data, u16_t len, rpc_msg_t* rcp_msg);
+err_t rpc_tcp_call(void* data, u16_t len, rpc_msg_t* call, rpc_header_t* header);
+err_t rpc_reply(rpc_msg_t* call, rpc_msg_t* replay, u_char accepted);
 
 #endif /* VXI11_INC_RPC_H_ */

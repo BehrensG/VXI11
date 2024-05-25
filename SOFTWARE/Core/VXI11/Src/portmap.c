@@ -44,7 +44,7 @@ static portmap_conn_t pmap_tcp_conn;
 
 static struct netconn* pmap_udp_netconn;
 static struct netconn* pmap_tcp_netconn;
-
+static struct netconn* pmap_tcp_newconn;
 
 
 typedef enum
@@ -66,6 +66,39 @@ static void pmap_tcp_netconn_callback(struct netconn *conn, enum netconn_evt eve
 #define pmap_udp_bind() pmap_netconn_bind(NETCONN_UDP, pmap_udp_netconn_callback, PMAPPORT)
 #define pmap_tcp_bind() pmap_netconn_bind(NETCONN_TCP, pmap_tcp_netconn_callback, PMAPPORT)
 
+
+static err_t pmap_tcp_send(struct netconn* conn, rpc_msg_t* reply, u32_t port)
+{
+	//struct netbuf *buf;
+	char* payload;
+	rpc_header_t header;
+	err_t err;
+
+	size_t offset = sizeof(struct accepted_reply) + sizeof(u32_t);
+	size_t rpc_size = offset + sizeof(u32_t);
+	header.data = rpc_size | RPC_HEADER_LAST;
+	size_t total_size = rpc_size + sizeof(rpc_header_t);
+
+	payload = malloc(total_size);
+
+	if(NULL != payload)
+	{
+		header.data = htonl(header.data);
+		memcpy(payload, &header, RPC_HEADER_SIZE);
+		memcpy(payload + RPC_HEADER_SIZE, reply, rpc_size);
+		memcpy(payload + offset + RPC_HEADER_SIZE, &port, sizeof(u32_t));
+
+		err = netconn_write(conn, payload, total_size, NETCONN_NOFLAG);
+
+		err = netconn_close(conn);
+		err = netconn_delete(conn);
+		//pmap_tcp_netconn = pmap_tcp_bind();
+		free(payload);
+	}
+
+	return err;
+
+}
 
 static err_t pmap_udp_send(struct netconn* conn, rpc_msg_t* reply, u32_t port)
 {
@@ -104,26 +137,30 @@ static err_t pmap_udp_send(struct netconn* conn, rpc_msg_t* reply, u32_t port)
 
 static void pmap_tcp_netconn_callback(struct netconn *conn, enum netconn_evt even, u16_t len)
 {
-	if (NETCONN_EVT_RCVPLUS == even)
+	err_t err;
+
+	if(NETCONN_EVT_RCVPLUS == even)
 	{
+
 		pmap_tcp_state = PMAP_NEW_TCP_DATA;
-		 xQueueSend(pmap_udp_queue, &pmap_tcp_state, 1000);
+		xQueueSend(pmap_tcp_queue, &pmap_tcp_state, 1000);
+
 	}
 }
 
 static void pmap_udp_netconn_callback(struct netconn *conn, enum netconn_evt even, u16_t len)
 {
 
-	if (NETCONN_EVT_RCVPLUS == even)
+	if(NETCONN_EVT_RCVPLUS == even)
 	{
 		pmap_udp_state = PMAP_NEW_UDP_DATA;
-		 xQueueSend(pmap_udp_queue, &pmap_udp_state, 1000);
+		xQueueSend(pmap_udp_queue, &pmap_udp_state, 1000);
 	}
 
 }
 
 
-err_t pmap_netconn_recv(struct netconn *conn, u32_t protocol)
+err_t pmap_udp_recv(struct netconn *conn)
 {
 	struct netbuf *buf;
 	void *data;
@@ -131,6 +168,7 @@ err_t pmap_netconn_recv(struct netconn *conn, u32_t protocol)
 	uint16_t len;
 	rpc_msg_t rcp_msg;
 
+	netconn_set_recvtimeout(conn, 1000);
 	err = netconn_recv(conn, &buf);
 
 	if (ERR_OK != err)
@@ -144,13 +182,13 @@ err_t pmap_netconn_recv(struct netconn *conn, u32_t protocol)
 
 		netbuf_data(buf, &data, &len);
 
-		err = rpc_netconn_call(data, len, &rcp_msg);
+		err = rpc_udp_call(data, len, &rcp_msg);
 
 		if((CALL == rcp_msg.rm_direction))
 		{
 			if( PMAPPROC_GETPORT == rcp_msg.ru.RM_cmb.cb_proc)
 			{
-				err = pmap_getport_proc(&rcp_msg, data, len, protocol);
+				err = pmap_getport_proc(&rcp_msg, data, len, IPPROTO_UDP);
 			}
 		}
 
@@ -161,7 +199,48 @@ err_t pmap_netconn_recv(struct netconn *conn, u32_t protocol)
 	return err;
 
 }
-//static err_t pmap_getport_proc(rpc_msg_t* rpc_msg, )
+
+err_t pmap_tcp_recv(struct netconn *conn)
+{
+	struct netbuf *buf;
+	void *data;
+	err_t err;
+	uint16_t len;
+	rpc_msg_t rcp_msg;
+	rpc_header_t header;
+
+	netconn_set_recvtimeout(conn, 1000);
+	err = netconn_recv(conn, &buf);
+
+	if (ERR_OK != err)
+	{
+		netbuf_delete(buf);
+	}
+	else
+	{
+		pmap_tcp_conn.addr = netbuf_fromaddr(buf); // get the address of the client
+		pmap_tcp_conn.port = netbuf_fromport(buf); // get the Port of the client
+
+		netbuf_data(buf, &data, &len);
+
+		err = rpc_tcp_call(data, len, &rcp_msg, &header);
+
+		if((CALL == rcp_msg.rm_direction))
+		{
+			if( PMAPPROC_GETPORT == rcp_msg.ru.RM_cmb.cb_proc)
+			{
+				err = pmap_getport_proc(&rcp_msg, data, len, IPPROTO_TCP);
+			}
+		}
+
+		netbuf_delete(buf);
+
+	}
+
+	return err;
+
+}
+
 
 static err_t pmap_getport_proc(rpc_msg_t* call, void* data, uint16_t len, u32_t protocol)
 {
@@ -186,7 +265,8 @@ static err_t pmap_getport_proc(rpc_msg_t* call, void* data, uint16_t len, u32_t 
 
 		port = htonl(port);
 
-		err = rpc_netconn_reply(call,&reply, 1);
+		err = rpc_reply(call,&reply, 1);
+
 
 		if(IPPROTO_UDP == protocol)
 		{
@@ -194,7 +274,7 @@ static err_t pmap_getport_proc(rpc_msg_t* call, void* data, uint16_t len, u32_t 
 		}
 		else if(IPPROTO_TCP == protocol)
 		{
-
+			err = pmap_tcp_send(pmap_tcp_newconn, &reply, port);
 		}
 
 	}
@@ -230,7 +310,7 @@ static void pmap_udp_server_task(void const *argument)
 		{
 			switch(pmap_udp_state)
 			{
-				case PMAP_NEW_UDP_DATA: pmap_netconn_recv(pmap_udp_netconn, IPPROTO_UDP); break;
+				case PMAP_NEW_UDP_DATA: pmap_udp_recv(pmap_udp_netconn); break;
 			}
 
 		}
@@ -248,7 +328,11 @@ static void pmap_tcp_server_task(void const *argument)
 		{
 			switch(pmap_tcp_state)
 			{
-				case PMAP_NEW_TCP_DATA: pmap_netconn_recv(pmap_tcp_netconn, IPPROTO_TCP); break;
+				case PMAP_NEW_TCP_DATA:
+					{
+						netconn_accept(pmap_tcp_netconn, &pmap_tcp_newconn);
+						pmap_tcp_recv(pmap_tcp_newconn);
+					};break;
 			}
 
 		}

@@ -39,7 +39,7 @@ static void rcp_hton(rpc_msg_t* rpc_msg)
 	rpc_msg->ru.RM_cmb.cb_cred.oa_length = htonl(rpc_msg->ru.RM_cmb.cb_cred.oa_length);
 }
 
-err_t rpc_netconn_call(void* data, u16_t len, rpc_msg_t* call)
+err_t rpc_udp_call(void* data, u16_t len, rpc_msg_t* call)
 {
 	err_t err = ERR_OK;
 	size_t rpc_msg_size = sizeof(rpc_msg_t);
@@ -55,9 +55,27 @@ err_t rpc_netconn_call(void* data, u16_t len, rpc_msg_t* call)
 
 }
 
+err_t rpc_tcp_call(void* data, u16_t len, rpc_msg_t* call, rpc_header_t* header)
+{
+	err_t err = ERR_OK;
+	size_t rpc_msg_size = sizeof(rpc_msg_t);
 
 
-err_t rpc_netconn_reply(rpc_msg_t* call, rpc_msg_t* replay, u_char accepted)
+	if(len >= rpc_msg_size)
+	{
+		memcpy(header, data, RPC_HEADER_SIZE);
+		header->data = ntohl(header->data);
+		memcpy(call, data + RPC_HEADER_SIZE, rpc_msg_size);
+		rcp_ntoh(call);
+	}
+
+	return err;
+
+}
+
+
+
+err_t rpc_reply(rpc_msg_t* call, rpc_msg_t* replay, u_char accepted)
 {
 
 	err_t err = ERR_OK;
@@ -86,3 +104,4 @@ err_t rpc_netconn_reply(rpc_msg_t* call, rpc_msg_t* replay, u_char accepted)
 	return err;
 
 }
+
