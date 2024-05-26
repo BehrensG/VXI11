@@ -24,6 +24,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "portmap.h"
+#include "vxi11.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -313,6 +314,7 @@ void StartDefaultTask(void const * argument)
 
   pmap_udp_server_start();
   pmap_tcp_server_start();
+  vxi11_server_start();
 
   /* Infinite loop */
   for(;;)

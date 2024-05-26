@@ -90,8 +90,8 @@ static err_t pmap_tcp_send(struct netconn* conn, rpc_msg_t* reply, u32_t port)
 
 		err = netconn_write(conn, payload, total_size, NETCONN_NOFLAG);
 
-		err = netconn_close(conn);
-		err = netconn_delete(conn);
+		//err = netconn_close(conn);
+		//err = netconn_delete(conn);
 		//pmap_tcp_netconn = pmap_tcp_bind();
 		free(payload);
 	}
@@ -285,7 +285,7 @@ static err_t pmap_getport_proc(rpc_msg_t* call, void* data, uint16_t len, u32_t 
 static struct netconn*  pmap_netconn_bind( enum netconn_type type, netconn_callback callback, u16_t port)
 {
 	err_t err;
-	static struct netconn* conn;
+	struct netconn* conn;
 
 	conn = netconn_new_with_callback(type, callback);
 	err = netconn_bind(conn, IP_ADDR_ANY, port);
@@ -333,6 +333,7 @@ static void pmap_tcp_server_task(void const *argument)
 						netconn_accept(pmap_tcp_netconn, &pmap_tcp_newconn);
 						pmap_tcp_recv(pmap_tcp_newconn);
 					};break;
+				 default: ;break;
 			}
 
 		}
