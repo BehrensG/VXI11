@@ -5,13 +5,13 @@
 
 # Add inputs and outputs from these tool invocations to the build variables 
 C_SRCS += \
-../LWIP/Target/ethernetif.c 
+../LWIP/Target/ethernetif_fix.c 
 
 OBJS += \
-./LWIP/Target/ethernetif.o 
+./LWIP/Target/ethernetif_fix.o 
 
 C_DEPS += \
-./LWIP/Target/ethernetif.d 
+./LWIP/Target/ethernetif_fix.d 
 
 
 # Each subdirectory must supply rules for building sources it contributes
@@ -21,7 +21,7 @@ LWIP/Target/%.o LWIP/Target/%.su LWIP/Target/%.cyclo: ../LWIP/Target/%.c LWIP/Ta
 clean: clean-LWIP-2f-Target
 
 clean-LWIP-2f-Target:
-	-$(RM) ./LWIP/Target/ethernetif.cyclo ./LWIP/Target/ethernetif.d ./LWIP/Target/ethernetif.o ./LWIP/Target/ethernetif.su
+	-$(RM) ./LWIP/Target/ethernetif_fix.cyclo ./LWIP/Target/ethernetif_fix.d ./LWIP/Target/ethernetif_fix.o ./LWIP/Target/ethernetif_fix.su
 
 .PHONY: clean-LWIP-2f-Target
 

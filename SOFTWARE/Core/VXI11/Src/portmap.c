@@ -50,10 +50,13 @@ static struct netconn* pmap_tcp_newconn;
 typedef enum
 {
 	PMAP_NEW_UDP_DATA,
-	PMAP_NEW_TCP_DATA
+	PMAP_NEW_TCP_DATA,
+	PMAP_CLOSE_TCP
 
 }pmap_state_t;
 
+#define IPPROTO_TCP     6
+#define IPPROTO_UDP     17
 
 static pmap_state_t pmap_udp_state;
 static pmap_state_t pmap_tcp_state;
@@ -62,9 +65,6 @@ static err_t pmap_getport_proc(rpc_msg_t* rpc_msg, void* data, uint16_t len, u32
 static struct netconn*  pmap_netconn_bind( enum netconn_type type, netconn_callback callback, u16_t port);
 static void pmap_udp_netconn_callback(struct netconn *conn, enum netconn_evt even, u16_t len);
 static void pmap_tcp_netconn_callback(struct netconn *conn, enum netconn_evt even, u16_t len);
-
-#define pmap_udp_bind() pmap_netconn_bind(NETCONN_UDP, pmap_udp_netconn_callback, PMAPPORT)
-#define pmap_tcp_bind() pmap_netconn_bind(NETCONN_TCP, pmap_tcp_netconn_callback, PMAPPORT)
 
 
 static err_t pmap_tcp_send(struct netconn* conn, rpc_msg_t* reply, u32_t port)
@@ -90,10 +90,8 @@ static err_t pmap_tcp_send(struct netconn* conn, rpc_msg_t* reply, u32_t port)
 
 		err = netconn_write(conn, payload, total_size, NETCONN_NOFLAG);
 
-		//err = netconn_close(conn);
-		//err = netconn_delete(conn);
-		//pmap_tcp_netconn = pmap_tcp_bind();
 		free(payload);
+
 	}
 
 	return err;
@@ -127,7 +125,7 @@ static err_t pmap_udp_send(struct netconn* conn, rpc_msg_t* reply, u32_t port)
 
 		err = netconn_close(conn);
 		err = netconn_delete(conn);
-		pmap_udp_netconn = pmap_udp_bind();
+		pmap_udp_netconn = pmap_netconn_bind(NETCONN_UDP, pmap_udp_netconn_callback, PMAPPORT);
 	}
 
 	return err;
@@ -167,8 +165,9 @@ err_t pmap_udp_recv(struct netconn *conn)
 	err_t err;
 	uint16_t len;
 	rpc_msg_t rcp_msg;
-
+#if LWIP_SO_RCVTIMEO == 1
 	netconn_set_recvtimeout(conn, 1000);
+#endif
 	err = netconn_recv(conn, &buf);
 
 	if (ERR_OK != err)
@@ -209,7 +208,7 @@ err_t pmap_tcp_recv(struct netconn *conn)
 	rpc_msg_t rcp_msg;
 	rpc_header_t header;
 
-	netconn_set_recvtimeout(conn, 1000);
+
 	err = netconn_recv(conn, &buf);
 
 	if (ERR_OK != err)
@@ -293,11 +292,13 @@ static struct netconn*  pmap_netconn_bind( enum netconn_type type, netconn_callb
 	if( NETCONN_TCP == type)
 	{
 		netconn_listen(conn);
+	#if LWIP_SO_RCVTIMEO == 1
+		netconn_set_recvtimeout(conn, 1000);
+	#endif
 	}
 
 	return conn;
 }
-
 
 
 static void pmap_udp_server_task(void const *argument)
@@ -318,6 +319,7 @@ static void pmap_udp_server_task(void const *argument)
 	}
 }
 
+
 static void pmap_tcp_server_task(void const *argument)
 {
 	pmap_tcp_netconn = pmap_netconn_bind(NETCONN_TCP, pmap_tcp_netconn_callback, PMAPPORT);
@@ -333,7 +335,12 @@ static void pmap_tcp_server_task(void const *argument)
 						netconn_accept(pmap_tcp_netconn, &pmap_tcp_newconn);
 						pmap_tcp_recv(pmap_tcp_newconn);
 					};break;
-				 default: ;break;
+				case PMAP_CLOSE_TCP :
+				{
+					netconn_close(pmap_tcp_newconn);
+					netconn_delete(pmap_tcp_newconn);
+				}
+				 default: osDelay(pdMS_TO_TICKS(10)); ;break;
 			}
 
 		}

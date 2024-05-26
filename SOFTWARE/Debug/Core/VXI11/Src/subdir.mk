@@ -7,17 +7,17 @@
 C_SRCS += \
 ../Core/VXI11/Src/portmap.c \
 ../Core/VXI11/Src/rpc.c \
-../Core/VXI11/Src/vxi11.c 
+../Core/VXI11/Src/vxi11core.c 
 
 OBJS += \
 ./Core/VXI11/Src/portmap.o \
 ./Core/VXI11/Src/rpc.o \
-./Core/VXI11/Src/vxi11.o 
+./Core/VXI11/Src/vxi11core.o 
 
 C_DEPS += \
 ./Core/VXI11/Src/portmap.d \
 ./Core/VXI11/Src/rpc.d \
-./Core/VXI11/Src/vxi11.d 
+./Core/VXI11/Src/vxi11core.d 
 
 
 # Each subdirectory must supply rules for building sources it contributes
@@ -27,7 +27,7 @@ Core/VXI11/Src/%.o Core/VXI11/Src/%.su Core/VXI11/Src/%.cyclo: ../Core/VXI11/Src
 clean: clean-Core-2f-VXI11-2f-Src
 
 clean-Core-2f-VXI11-2f-Src:
-	-$(RM) ./Core/VXI11/Src/portmap.cyclo ./Core/VXI11/Src/portmap.d ./Core/VXI11/Src/portmap.o ./Core/VXI11/Src/portmap.su ./Core/VXI11/Src/rpc.cyclo ./Core/VXI11/Src/rpc.d ./Core/VXI11/Src/rpc.o ./Core/VXI11/Src/rpc.su ./Core/VXI11/Src/vxi11.cyclo ./Core/VXI11/Src/vxi11.d ./Core/VXI11/Src/vxi11.o ./Core/VXI11/Src/vxi11.su
+	-$(RM) ./Core/VXI11/Src/portmap.cyclo ./Core/VXI11/Src/portmap.d ./Core/VXI11/Src/portmap.o ./Core/VXI11/Src/portmap.su ./Core/VXI11/Src/rpc.cyclo ./Core/VXI11/Src/rpc.d ./Core/VXI11/Src/rpc.o ./Core/VXI11/Src/rpc.su ./Core/VXI11/Src/vxi11core.cyclo ./Core/VXI11/Src/vxi11core.d ./Core/VXI11/Src/vxi11core.o ./Core/VXI11/Src/vxi11core.su
 
 .PHONY: clean-Core-2f-VXI11-2f-Src
 

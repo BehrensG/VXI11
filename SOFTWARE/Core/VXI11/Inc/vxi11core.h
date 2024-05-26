@@ -32,11 +32,16 @@ struct Device_Error {
 };
 typedef struct Device_Error Device_Error;
 
+typedef struct {
+	u_long lenght;
+	char* contents;
+}device_t;
+
 struct Create_LinkParms {
 	int clientId;
-	bool lockDevice;
+	u_int lockDevice;
 	u_int lock_timeout;
-	char *device;
+	device_t device;
 };
 typedef struct Create_LinkParms Create_LinkParms;
 
@@ -158,6 +163,13 @@ typedef struct Device_DocmdResp Device_DocmdResp;
 
 #define DEVICE_CORE 0x0607AF
 #define DEVICE_CORE_VERSION 1
+
+#define CREATE_LINK			10
+#define DEVICE_WRITE		11
+#define DEVICE_READ			12
+#define DEVICE_READ_STB		13
+#define DEVICE_TRIGGER		14
+#define DEVICE_CLEAR		15
 
 Create_LinkResp vxi11_create_link(Create_LinkParms* create_link_parms);
 Device_WriteResp vxi11_device_write(Device_WriteParms* device_write_parms);

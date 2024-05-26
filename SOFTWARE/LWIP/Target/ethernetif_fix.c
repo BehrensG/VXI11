@@ -381,6 +381,8 @@ static err_t low_level_output(struct netif *netif, struct pbuf *p)
     Txbuffer[i].buffer = q->payload;
     Txbuffer[i].len = q->len;
 
+    SCB_CleanDCache_by_Addr((uint32_t *)q->payload, q->len);
+
     if(i>0)
     {
       Txbuffer[i-1].next = &Txbuffer[i];

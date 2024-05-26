@@ -22,8 +22,7 @@ static void rcp_ntoh(rpc_msg_t* rpc_msg)
 	rpc_msg->ru.RM_cmb.cb_rpcvers = ntohl(rpc_msg->ru.RM_cmb.cb_rpcvers);
 	rpc_msg->ru.RM_cmb.cb_proc = ntohl(rpc_msg->ru.RM_cmb.cb_proc);
 	rpc_msg->ru.RM_cmb.cb_vers = ntohl(rpc_msg->ru.RM_cmb.cb_vers);
-	rpc_msg->ru.RM_cmb.cb_proc = ntohl(rpc_msg->ru.RM_cmb.cb_proc);
-	rpc_msg->ru.RM_cmb.cb_proc = ntohl(rpc_msg->ru.RM_cmb.cb_proc);
+	rpc_msg->ru.RM_cmb.cb_prog = ntohl(rpc_msg->ru.RM_cmb.cb_prog);
 	rpc_msg->ru.RM_cmb.cb_cred.oa_flavor = ntohl(rpc_msg->ru.RM_cmb.cb_cred.oa_flavor);
 	rpc_msg->ru.RM_cmb.cb_cred.oa_length = ntohl(rpc_msg->ru.RM_cmb.cb_cred.oa_length);
 }
@@ -33,8 +32,7 @@ static void rcp_hton(rpc_msg_t* rpc_msg)
 	rpc_msg->ru.RM_cmb.cb_rpcvers = htonl(rpc_msg->ru.RM_cmb.cb_rpcvers);
 	rpc_msg->ru.RM_cmb.cb_proc = htonl(rpc_msg->ru.RM_cmb.cb_proc);
 	rpc_msg->ru.RM_cmb.cb_vers = htonl(rpc_msg->ru.RM_cmb.cb_vers);
-	rpc_msg->ru.RM_cmb.cb_proc = htonl(rpc_msg->ru.RM_cmb.cb_proc);
-	rpc_msg->ru.RM_cmb.cb_proc = htonl(rpc_msg->ru.RM_cmb.cb_proc);
+	rpc_msg->ru.RM_cmb.cb_prog = htonl(rpc_msg->ru.RM_cmb.cb_prog);
 	rpc_msg->ru.RM_cmb.cb_cred.oa_flavor = htonl(rpc_msg->ru.RM_cmb.cb_cred.oa_flavor);
 	rpc_msg->ru.RM_cmb.cb_cred.oa_length = htonl(rpc_msg->ru.RM_cmb.cb_cred.oa_length);
 }
@@ -59,7 +57,7 @@ err_t rpc_tcp_call(void* data, u16_t len, rpc_msg_t* call, rpc_header_t* header)
 {
 	err_t err = ERR_OK;
 	size_t rpc_msg_size = sizeof(rpc_msg_t);
-
+	size_t rpc_header_size = sizeof(rpc_header_t);
 
 	if(len >= rpc_msg_size)
 	{
@@ -104,4 +102,5 @@ err_t rpc_reply(rpc_msg_t* call, rpc_msg_t* replay, u_char accepted)
 	return err;
 
 }
+
 
