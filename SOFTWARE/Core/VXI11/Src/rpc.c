@@ -29,6 +29,7 @@ static void rcp_ntoh(rpc_msg_t* rpc_msg)
 
 static void rcp_hton(rpc_msg_t* rpc_msg)
 {
+	rpc_msg->rm_direction = htonl(rpc_msg->rm_direction);
 	rpc_msg->ru.RM_cmb.cb_rpcvers = htonl(rpc_msg->ru.RM_cmb.cb_rpcvers);
 	rpc_msg->ru.RM_cmb.cb_proc = htonl(rpc_msg->ru.RM_cmb.cb_proc);
 	rpc_msg->ru.RM_cmb.cb_vers = htonl(rpc_msg->ru.RM_cmb.cb_vers);
@@ -83,7 +84,7 @@ err_t rpc_reply(rpc_msg_t* call, rpc_msg_t* replay,enum reply_stat accepted)
 	{
 	replay->rm_xid = call->rm_xid;
 	replay->rm_direction = REPLY;
-	replay->rm_direction = htonl(replay->rm_direction);
+//	replay->rm_direction = htonl(replay->rm_direction);
 	replay->ru.RM_rmb.rp_stat = MSG_ACCEPTED;
 
 	replay->ru.RM_rmb.ru.RP_ar.ar_stat = _SUCCESS;

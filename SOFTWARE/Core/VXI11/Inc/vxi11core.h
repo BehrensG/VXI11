@@ -64,7 +64,7 @@ typedef struct Create_LinkParms Create_LinkParms;
 struct Create_LinkResp {
 	Device_ErrorCode error;
 	Device_Link lid;
-	u_short abortPort;
+	u_int abortPort;
 	u_int maxRecvSize;
 };
 typedef struct Create_LinkResp Create_LinkResp;

@@ -22,11 +22,11 @@
 
 
 TaskHandle_t pmap_udp_task_handler;
-uint32_t pmap_udp_task_buffer[DEFAULT_THREAD_STACKSIZE/4];
+uint32_t pmap_udp_task_buffer[DEFAULT_THREAD_STACKSIZE/2];
 StaticTask_t pmap_udp_task_control_block;
 
 TaskHandle_t pmap_tcp_task_handler;
-uint32_t pmap_tcp_task_buffer[DEFAULT_THREAD_STACKSIZE/4];
+uint32_t pmap_tcp_task_buffer[DEFAULT_THREAD_STACKSIZE/2];
 StaticTask_t pmap_tcp_task_control_block;
 
 xQueueHandle pmap_udp_queue;
@@ -352,7 +352,7 @@ void pmap_udp_server_start(void)
 {
 
 	pmap_udp_task_handler = xTaskCreateStatic(pmap_udp_server_task,"pmap_udp_task",
-			DEFAULT_THREAD_STACKSIZE/4, (void*)1, tskIDLE_PRIORITY,
+			DEFAULT_THREAD_STACKSIZE/2, (void*)1, tskIDLE_PRIORITY,
 			pmap_udp_task_buffer, &pmap_udp_task_control_block);
 
 	pmap_udp_queue = xQueueCreate(1, sizeof(pmap_state_t));
@@ -362,7 +362,7 @@ void pmap_tcp_server_start(void)
 {
 
 	pmap_tcp_task_handler = xTaskCreateStatic(pmap_tcp_server_task,"pmap_tcp_task",
-			DEFAULT_THREAD_STACKSIZE/4, (void*)1, tskIDLE_PRIORITY,
+			DEFAULT_THREAD_STACKSIZE/2, (void*)1, tskIDLE_PRIORITY,
 			pmap_tcp_task_buffer, &pmap_tcp_task_control_block);
 
 	pmap_tcp_queue = xQueueCreate(1, sizeof(pmap_state_t));

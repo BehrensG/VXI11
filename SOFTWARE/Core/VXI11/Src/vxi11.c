@@ -5,6 +5,8 @@
  *      Author: grzegorz
  */
 
+#include <stddef.h>
+
 #include "string.h"
 #include "stddef.h"
 #include "cmsis_os.h"
@@ -82,6 +84,9 @@ Device_Error vxi11_device_clear(Device_GenericParms* device_generic_parms);
 
 
 void vxi11_copy_memory(void **sources, size_t *sizes, u_int num_sources, char *destination);
+u_int vx11_sum_size(u_int* sizes, u_int len);
+
+
 
 void vxi11_connect(vxi11_instr_t* vxi11_instr);
 
@@ -91,7 +96,15 @@ static void vxi11_core_callback(struct netconn *conn, enum netconn_evt even, u16
 
 	if(NETCONN_EVT_RCVPLUS == even)
 	{
-		vxi11_state = VXI11_MSG;
+		if(NULL == vxi11_instr.core.newconn)
+		{
+			vxi11_state = VXI11_CONNECT;
+		}
+		else
+		{
+			vxi11_state = VXI11_MSG;
+		}
+
 		xQueueSend(vxi11_queue, &vxi11_state, 1000);
 
 	}
@@ -171,10 +184,7 @@ void vxi11_core_connect(vxi11_instr_t* vxi11_instr)
 
 
 
-	if(NULL == vxi11_instr->core.newconn)
-	{
-		err = netconn_accept(vxi11_instr->core.conn, &newconn);
-	}
+	err = netconn_accept(vxi11_instr->core.conn, &newconn);
 
 	if(ERR_OK == err)
 	{
@@ -202,19 +212,18 @@ void vxi11_core_connect(vxi11_instr_t* vxi11_instr)
 				{
 					vxi11_instr->create_link_resp = vxi11_create_link(&vxi11_instr->create_link_parms);
 					rpc_reply(&rpc_msg_call, &rpc_msg_reply,MSG_ACCEPTED);
-					rpc_header.data = netconn_reply.len | RPC_HEADER_LAST;
 
-					size_t sizes[] = {sizeof(rpc_header_t), sizeof(rpc_msg_t), sizeof(Create_LinkResp)};
+
+					size_t sizes[] = {sizeof(rpc_header_t), sizeof(struct accepted_reply) + sizeof(u32_t), sizeof(Create_LinkResp)};
 					void *sources[] = { &rpc_header, &rpc_msg_reply, &vxi11_instr->create_link_resp};
 
-					for(u_char x = 0; x < sizeof(sizes)/sizeof(sizes[0]); x++)
-					{
-						netconn_reply.len += sizes[x];
-					}
+					netconn_reply.len = vx11_sum_size(sizes, sizeof(sizes)/sizeof(sizes[0]));
 
+					rpc_header.data = netconn_reply.len  - sizes[0] | RPC_HEADER_LAST;
+					rpc_header.data = htonl(rpc_header.data);
 					netconn_reply.buffer = (char*)malloc(netconn_reply.len);
 
-					vxi11_copy_memory(sources, sizes, sizeof(sizes)/sizeof(sizes[0]), &netconn_reply.buffer);
+					vxi11_copy_memory(sources, sizes, sizeof(sizes)/sizeof(sizes[0]), netconn_reply.buffer);
 
 					netconn_write(vxi11_instr->core.newconn, netconn_reply.buffer, netconn_reply.len, NETCONN_NOFLAG);
 
@@ -277,6 +286,92 @@ Create_LinkResp vxi11_create_link(Create_LinkParms* create_link_parms)
 	return create_link_resp;
 }
 
+// ------------------------------------------------------------------------------------------------------------------------
+
+
+void vxi11_core_write(vxi11_instr_t* vxi11_instr)
+{
+	struct netconn *newconn;
+	struct netbuf* buf;
+
+	netconn_data_t netconn_call;
+	netconn_data_t netconn_reply;
+
+	err_t err = ERR_OK;
+
+	rpc_msg_t rpc_msg_call;
+	rpc_msg_t rpc_msg_reply;
+	rpc_header_t rpc_header;
+
+
+
+
+	if(ERR_OK == err)
+	{
+
+		err = netconn_recv(vxi11_instr->core.newconn, &buf);
+
+		if(err != ERR_OK)
+		{
+			vxi11_instr->state = VXI11_RECV_ERR;
+			netconn_close(vxi11_instr->core.newconn);
+
+		}
+
+		netbuf_data(buf, &netconn_call.buffer, &netconn_call.len);
+
+		rpc_tcp_call_parser(netconn_call.buffer, netconn_call.len, &rpc_msg_call, &rpc_header);
+
+		if(DEVICE_CORE == rpc_msg_call.ru.RM_cmb.cb_prog)
+		{
+			if(CREATE_LINK == rpc_msg_call.ru.RM_cmb.cb_proc)
+			{
+				if(ERR_OK == vxi11_create_link_parser(netconn_call.buffer, netconn_call.len, &vxi11_instr->create_link_parms))
+				{
+					vxi11_instr->create_link_resp = vxi11_create_link(&vxi11_instr->create_link_parms);
+					rpc_reply(&rpc_msg_call, &rpc_msg_reply,MSG_ACCEPTED);
+
+
+					size_t sizes[] = {sizeof(rpc_header_t), sizeof(struct accepted_reply), sizeof(Create_LinkResp)};
+					void *sources[] = { &rpc_header, &rpc_msg_reply, &vxi11_instr->create_link_resp};
+
+					for(u_char x = 0; x < sizeof(sizes)/sizeof(sizes[0]); x++)
+					{
+						netconn_reply.len += sizes[x];
+					}
+
+					rpc_header.data = netconn_reply.len - sizes[2] | RPC_HEADER_LAST;
+					rpc_header.data = htonl(rpc_header.data);
+					netconn_reply.buffer = (char*)malloc(netconn_reply.len);
+
+					vxi11_copy_memory(sources, sizes, sizeof(sizes)/sizeof(sizes[0]), netconn_reply.buffer);
+
+					netconn_write(vxi11_instr->core.newconn, netconn_reply.buffer, netconn_reply.len, NETCONN_NOFLAG);
+
+					free(netconn_reply.buffer);
+				}
+
+			}
+		}
+
+		netbuf_delete(buf);
+
+	}
+
+}
+
+
+err_t vxi11_write_parser(netconn_data_t netconn_data, Device_WriteParms* device_write_parms)
+{
+	size_t sizes[] = {sizeof(rpc_header_t), sizeof(rpc_msg_t)};
+	size_t rpc_msg_size = vx11_sum_size(sizes, sizeof(sizes)/sizeof(sizes[0]));
+
+
+
+
+	return ERR_OK;
+
+}
 // ------------------------------------------------------------------------------------------------------------------------
 
 err_t vxi11_device_clear_parser(void* data, u16_t len, Device_GenericParms* device_generic_parms);
@@ -365,6 +460,22 @@ void vxi11_server_start(void)
 			vxi11_abort_buffer, &vxi11_abort_control_block);
 
 	vxi11_queue = xQueueCreate(1, sizeof(u_int));
+}
+
+
+//---------------------------------------------------------------------------------------------------------------
+// Utils
+
+u_int vx11_sum_size(u_int* sizes, u_int len)
+{
+	u_int sum = 0;
+
+	for(u_char i = 0; i < len; i++)
+	{
+		sum += sizes[i];
+	}
+
+	return sum;
 }
 
 void vxi11_copy_memory(void** sources, size_t* sizes, u_int num_sources, char* destination)
