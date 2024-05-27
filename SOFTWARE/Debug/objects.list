@@ -9,7 +9,7 @@
 "./Core/Startup/startup_stm32h743zitx.o"
 "./Core/VXI11/Src/portmap.o"
 "./Core/VXI11/Src/rpc.o"
-"./Core/VXI11/Src/vxi11core.o"
+"./Core/VXI11/Src/vxi11.o"
 "./Drivers/BSP/Components/lan8742/lan8742.o"
 "./Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal.o"
 "./Drivers/STM32H7xx_HAL_Driver/Src/stm32h7xx_hal_cortex.o"

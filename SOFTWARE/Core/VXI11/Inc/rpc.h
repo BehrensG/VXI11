@@ -162,8 +162,8 @@ typedef struct rpc_header rpc_header_t;
 #define RPC_HEADER_LAST		0x80000000
 
 
-err_t rpc_udp_call(void* data, u16_t len, rpc_msg_t* rcp_msg);
-err_t rpc_tcp_call(void* data, u16_t len, rpc_msg_t* call, rpc_header_t* header);
+err_t rpc_udp_call_parser(void* data, u16_t len, rpc_msg_t* rcp_msg);
+err_t rpc_tcp_call_parser(void* data, u16_t len, rpc_msg_t* call, rpc_header_t* header);
 err_t rpc_reply(rpc_msg_t* call, rpc_msg_t* replay, u_char accepted);
 
 #endif /* VXI11_INC_RPC_H_ */

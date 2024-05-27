@@ -53,7 +53,7 @@ err_t rpc_udp_call(void* data, u16_t len, rpc_msg_t* call)
 
 }
 
-err_t rpc_tcp_call(void* data, u16_t len, rpc_msg_t* call, rpc_header_t* header)
+err_t rpc_tcp_call_parser(void* data, u16_t len, rpc_msg_t* call, rpc_header_t* header)
 {
 	err_t err = ERR_OK;
 	size_t rpc_msg_size = sizeof(rpc_msg_t);
@@ -73,13 +73,13 @@ err_t rpc_tcp_call(void* data, u16_t len, rpc_msg_t* call, rpc_header_t* header)
 
 
 
-err_t rpc_reply(rpc_msg_t* call, rpc_msg_t* replay, u_char accepted)
+err_t rpc_reply(rpc_msg_t* call, rpc_msg_t* replay,enum reply_stat accepted)
 {
 
 	err_t err = ERR_OK;
 	memset(replay, 0, sizeof(rpc_msg_t));
 
-	if(accepted)
+	if(MSG_ACCEPTED == accepted)
 	{
 	replay->rm_xid = call->rm_xid;
 	replay->rm_direction = REPLY;

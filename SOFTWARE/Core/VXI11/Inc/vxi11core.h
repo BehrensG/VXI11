@@ -11,7 +11,23 @@
 #include <stdbool.h>
 
 
+#define VXI11_MAX_RECV_SIZE		1024
+#define VXI11_MAX_DEVICE_NAME	256
+#define VXI11_ABORT_PORT		(u_short)889
+#define VXI11_LINKID_DEFAULT	123
+
+enum create_link_error
+{
+	NO_ERR,
+	SYNTAX_ERR = 1,
+	DEVICE_NOT_ACCESSIBLE = 3,
+	OUT_OF_RESOURCES = 9,
+	DEVICE_LOCKED_BY_LINK = 11,
+	INVALID_ADDRESS = 21
+};
+
 typedef int Device_Link;
+
 
 enum Device_AddrFamily {
 	DEVICE_TCP = 0,
@@ -27,14 +43,14 @@ typedef int Device_ErrorCode;
 
 #pragma pack(push, 1)
 
-struct Device_Error {
+typedef struct  {
 	Device_ErrorCode error;
-};
-typedef struct Device_Error Device_Error;
+}Device_Error;
+
 
 typedef struct {
 	u_long lenght;
-	char* contents;
+	char contents [VXI11_MAX_DEVICE_NAME];
 }device_t;
 
 struct Create_LinkParms {
@@ -60,7 +76,7 @@ struct Device_WriteParms {
 	Device_Flags flags;
 	struct {
 		u_int data_len;
-		char *data_val;
+		char data_val[VXI11_MAX_RECV_SIZE];
 	} data;
 };
 typedef struct Device_WriteParms Device_WriteParms;
@@ -86,7 +102,7 @@ struct Device_ReadResp {
 	int reason;
 	struct {
 		u_int data_len;
-		char *data_val;
+		char data_val[1024];
 	} data;
 };
 typedef struct Device_ReadResp Device_ReadResp;
