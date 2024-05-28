@@ -66,20 +66,7 @@ struct opaque_auth {
  */
 struct accepted_reply {
 	struct opaque_auth	ar_verf;
-	u32_t	ar_stat;
-	union {
-		struct {
-			u32_t	low;
-			u32_t	high;
-		} AR_versions;
-		struct {
-			caddr_t	where;
-			xdrproc_t proc;
-		} AR_results;
-		/* and many other null cases */
-	} ru;
-#define	ar_results	ru.AR_results
-#define	ar_vers		ru.AR_versions
+
 };
 
 enum auth_stat {
@@ -113,8 +100,9 @@ struct reply_body {
 	 u32_t rp_stat;
 	union {
 		struct accepted_reply RP_ar;
-		struct rejected_reply RP_dr;
+	//	struct rejected_reply RP_dr;
 	} ru;
+	u32_t ac_stat;
 #define	rp_acpt	ru.RP_ar
 #define	rp_rjct	ru.RP_dr
 };
@@ -134,6 +122,7 @@ struct call_body {
 /*
  * The rpc message
  */
+/*
 struct rpc_msg {
 	u32_t			rm_xid;
 	u32_t		rm_direction;
@@ -146,6 +135,31 @@ struct rpc_msg {
 };
 
 typedef struct rpc_msg rpc_msg_t;
+*/
+
+struct rpc_msg_call {
+	u32_t			rm_xid;
+	u32_t		rm_direction;
+	union {
+		struct call_body RM_cmb;
+	} ru;
+#define	rm_call		ru.RM_cmb
+#define	rm_reply	ru.RM_rmb
+};
+
+typedef struct rpc_msg_call rpc_msg_call_t;
+
+struct rpc_msg_reply {
+	u32_t			rm_xid;
+	u32_t		rm_direction;
+	union {
+		struct reply_body RM_rmb;
+	} ru;
+#define	rm_call		ru.RM_cmb
+#define	rm_reply	ru.RM_rmb
+};
+
+typedef struct rpc_msg_reply rpc_msg_reply_t;
 
 struct rpc_header {
 	u32_t data;
@@ -162,8 +176,11 @@ typedef struct rpc_header rpc_header_t;
 #define RPC_HEADER_LAST		0x80000000
 
 
-err_t rpc_udp_call_parser(void* data, u16_t len, rpc_msg_t* rcp_msg);
-err_t rpc_tcp_call_parser(void* data, u16_t len, rpc_msg_t* call, rpc_header_t* header);
-err_t rpc_reply(rpc_msg_t* call, rpc_msg_t* replay, u_char accepted);
+err_t rpc_udp_call_parser(void* data, u16_t len, rpc_msg_call_t* rcp_msg);
+err_t rpc_tcp_call_parser(void* data, u16_t len, rpc_msg_call_t* call, rpc_header_t* header);
+err_t rpc_reply(rpc_msg_reply_t* replay, rpc_msg_call_t* call, enum reply_stat accepted);
+
+void rpc_copy_memory(char* destination, void** sources, size_t* sizes, u_int num_sources);
+u_int rpc_sum_size(u_int* sizes, u_int len);
 
 #endif /* VXI11_INC_RPC_H_ */
