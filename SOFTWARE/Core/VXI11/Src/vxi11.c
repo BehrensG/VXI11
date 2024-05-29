@@ -23,72 +23,158 @@
 #include "vxi11.h"
 
 TaskHandle_t vxi11_core_handler;
-uint32_t vxi11_core_buffer[DEFAULT_THREAD_STACKSIZE];
+uint32_t vxi11_core_buffer[DEFAULT_THREAD_STACKSIZE*2];
 StaticTask_t vxi11_core_control_block;
 
 TaskHandle_t vxi11_abort_handler;
 uint32_t vxi11_abort_buffer[DEFAULT_THREAD_STACKSIZE/2];
 StaticTask_t vxi11_abort_control_block;
 
-xQueueHandle vxi11_queue;
-
-
-typedef struct
-{
-	char* buffer;
-	u32_t len;
-}netconn_data_t;
-
-typedef struct
-{
-  ip_addr_t* addr;
-  u16_t port;
-}vxi11_conn_info_t;
-
 typedef enum
 {
-	VXI11_IDLE,
-	VXI11_ERROR,
-	VXI11_CONNECT,
-	VXI11_RECV_ERR,
-	VXI11_MSG
+	VXI11_ERROR = 0,
+	VXI11_NONE = 1,
+	VXI11_CREATE_LINK =  CREATE_LINK,
+	VXI11_DEVICE_WRITE =  DEVICE_WRITE,
+	VXI11_DEVICE_READ =  DEVICE_READ,
+	VXI11_DEVICE_READ_STB =  DEVICE_READ_STB,
+	VXI11_DEVICE_TRIGGER = DEVICE_TRIGGER,
+	VXI11_DEVICE_CLEAR = DEVICE_CLEAR,
+	VXI11_DESTROY_LINK = DESTROY_LINK
 
-}vxi11_state_t;
-
-
-typedef struct
-{
-	struct netconn* conn;
-	struct netconn* newconn;
-}vxi11_netconn_t;
+}vx11_procedure_t;
 
 
-typedef struct
-{
-	vxi11_state_t state;
-	vxi11_netconn_t core;
-	vxi11_netconn_t abort;
-	vxi11_conn_info_t conn_info;
-	Create_LinkParms create_link_parms;
-	Create_LinkResp create_link_resp;
-	Device_GenericParms device_clear;
 
-}vxi11_instr_t;
+xQueueHandle vxi11_queue;
+xQueueHandle netbuf_call_queue;
 
+vxi11_netbuf_t vxi11_netbuf_call;
+vxi11_netconn_t	vxi11_netconn;
 
-static vxi11_instr_t vxi11_instr;
+vxi11_instr_t vxi11_instr;
+
 static vxi11_state_t vxi11_state = VXI11_IDLE;
-static Device_Link lid = VXI11_LINKID_DEFAULT;
-
-Device_Error vxi11_device_clear(Device_GenericParms* device_generic_parms);
-
-
-void vxi11_copy_memory(void **sources, size_t *sizes, u_int num_sources, char *destination);
+static struct netconn*  vxi11_bind( netconn_callback callback, u16_t port);
 
 
 
 
-void vxi11_connect(vxi11_instr_t* vxi11_instr);
+
+// ------------------------------------------------------------------------------------------------------------
+
+// New code
+
+vx11_procedure_t vx11_netconn_parser(vxi11_netbuf_t* ptr_vxi11_netconn_call)
+{
+
+	vx11_procedure_t vxi11_procedure;
+
+	rpc_msg_call_t call;
+	rpc_header_t header;
+
+	if(pdTRUE == xQueueReceive(netbuf_call_queue, ptr_vxi11_netconn_call, 10000U))
+	{
+		if(ERR_OK == ptr_vxi11_netconn_call->err)
+		{
+			rpc_tcp_call_parser(ptr_vxi11_netconn_call->data, ptr_vxi11_netconn_call->len, &call, &header);
+
+			if(DEVICE_CORE == call.ru.RM_cmb.cb_prog)
+			{
+				return (vx11_procedure_t)call.ru.RM_cmb.cb_proc;
+			}
+			else
+			{
+				vxi11_procedure = VXI11_NONE;
+			}
+
+		}
+		else
+		{
+			vxi11_procedure = VXI11_ERROR;
+		}
+	}
+	else
+	{
+		vxi11_procedure = VXI11_NONE;
+	}
+
+	return vxi11_procedure;
+}
+
+static void vxi11_core_callback_v2(struct netconn *conn, enum netconn_evt even, u16_t len)
+{
+	if(NETCONN_EVT_RCVPLUS == even)
+	{
+		struct netbuf* buf;
+		void* data;
+		u16_t len;
+		err_t err;
+
+		vxi11_netbuf_call.len = 0;
+		memset(vxi11_netbuf_call.data,0,sizeof(vxi11_netbuf_call.data));
+		vxi11_netbuf_call.err = ERR_OK;
+
+		vxi11_netbuf_t* ptr_vxi11_netbuf_call = &vxi11_netbuf_call;
+
+		if(NULL == vxi11_netconn.newconn)
+		{
+			err = netconn_accept(conn, &vxi11_netconn.newconn);
+
+		}
+
+		if(ERR_OK == err)
+		{
+			if(ERR_OK == netconn_recv(vxi11_netconn.newconn, &buf))
+			{
+				do
+				{
+					netbuf_data(buf, &data, &len);
+					vxi11_netbuf_call.len +=len;
+
+					if(vxi11_netbuf_call.len <= sizeof(vxi11_netbuf_call.data))
+					{
+						memcpy(vxi11_netbuf_call.data + vxi11_netbuf_call.len, data, len);
+
+					}
+					else
+					{
+						vxi11_netbuf_call.err = ERR_MEM;
+					}
+
+
+				}
+				while(netbuf_next(buf) >= 0);
+				netbuf_delete(buf);
+
+				xQueueSend(netbuf_call_queue, ptr_vxi11_netbuf_call, portMAX_DELAY);
+			}
+		}
+
+	}
+}
+
+
+static void vxi11_core_task_v2(void const *argument)
+{
+	vxi11_netconn.conn = vxi11_bind(vxi11_core_callback_v2, VXI11_PORT);
+
+	for (;;)
+	{
+
+		switch(vx11_netconn_parser(&vxi11_netbuf_call))
+		{
+			case VXI11_CREATE_LINK : vxi11_create_link(&vxi11_instr, &vxi11_netconn, &vxi11_netbuf_call); break;
+			case VXI11_DEVICE_WRITE : vxi11_device_write(&vxi11_instr, &vxi11_netconn, &vxi11_netbuf_call); break;
+			case VXI11_DEVICE_READ : vxi11_device_read(&vxi11_instr, &vxi11_netconn, &vxi11_netbuf_call); break;
+			case VXI11_DESTROY_LINK : vxi11_destroy_link(&vxi11_instr, &vxi11_netconn, &vxi11_netbuf_call); break;
+			default : osDelay(pdMS_TO_TICKS(10)); break;
+		}
+
+	}
+}
+
+// ------------------------------------------------------------------------------------------------------------
 
 
 static void vxi11_core_callback(struct netconn *conn, enum netconn_evt even, u16_t len)
@@ -129,7 +215,7 @@ static struct netconn*  vxi11_bind( netconn_callback callback, u16_t port)
 	err = netconn_bind(conn, IP_ADDR_ANY, port);
 	err = netconn_listen(conn);
 #if LWIP_SO_RCVTIMEO == 1
-	netconn_set_recvtimeout(conn, 20000);
+	netconn_set_recvtimeout(conn, 1000);
 #endif
 	return conn;
 }
@@ -164,247 +250,6 @@ static vxi11_state_t vx11_queue()
 }
 
 // ------------------------------------------------------------------------------------------------------------------------
-
-Create_LinkResp vxi11_create_link(Create_LinkParms* create_link_parms);
-err_t vxi11_create_link_parser(void* data, u16_t len, Create_LinkParms* create_link_parms);
-
-void vxi11_core_connect(vxi11_instr_t* vxi11_instr)
-{
-	struct netconn *newconn;
-	struct netbuf* buf;
-
-	netconn_data_t netconn_call;
-	netconn_data_t netconn_reply;
-
-	err_t err = ERR_OK;
-
-	rpc_msg_call_t rpc_msg_call;
-	rpc_msg_reply_t rpc_msg_reply;
-	rpc_header_t rpc_header;
-
-
-
-	err = netconn_accept(vxi11_instr->core.conn, &newconn);
-
-	if(ERR_OK == err)
-	{
-		vxi11_instr->core.newconn = newconn;
-
-
-		err = netconn_recv(vxi11_instr->core.newconn, &buf);
-
-		if(err != ERR_OK)
-		{
-			vxi11_instr->state = VXI11_RECV_ERR;
-			netconn_close(vxi11_instr->core.newconn);
-
-		}
-
-		netbuf_data(buf, &netconn_call.buffer, &netconn_call.len);
-
-		rpc_tcp_call_parser(netconn_call.buffer, netconn_call.len, &rpc_msg_call, &rpc_header);
-
-		if(DEVICE_CORE == rpc_msg_call.ru.RM_cmb.cb_prog)
-		{
-			if(CREATE_LINK == rpc_msg_call.ru.RM_cmb.cb_proc)
-			{
-				if(ERR_OK == vxi11_create_link_parser(netconn_call.buffer, netconn_call.len, &vxi11_instr->create_link_parms))
-				{
-					vxi11_instr->create_link_resp = vxi11_create_link(&vxi11_instr->create_link_parms);
-					rpc_reply(&rpc_msg_reply, &rpc_msg_call, MSG_ACCEPTED);
-
-
-					size_t sizes[] = {sizeof(rpc_header_t), sizeof(rpc_msg_reply_t), sizeof(Create_LinkResp)};
-					void *sources[] = { &rpc_header, &rpc_msg_reply, &vxi11_instr->create_link_resp};
-
-					netconn_reply.len = rpc_sum_size(sizes, sizeof(sizes)/sizeof(sizes[0]));
-
-					rpc_header.data = (netconn_reply.len - sizes[0]) | RPC_HEADER_LAST;
-					rpc_header.data = htonl(rpc_header.data);
-
-					netconn_reply.buffer = (char*)malloc(netconn_reply.len);
-
-					rpc_copy_memory(netconn_reply.buffer, sources, sizes, sizeof(sizes)/sizeof(sizes[0]));
-
-					netconn_write(vxi11_instr->core.newconn, netconn_reply.buffer, netconn_reply.len, NETCONN_NOFLAG);
-
-					free(netconn_reply.buffer);
-				}
-
-			}
-		}
-
-		netbuf_delete(buf);
-
-	}
-
-}
-
-err_t vxi11_create_link_parser(void* data, u16_t len, Create_LinkParms* create_link_parms)
-{
-	size_t rpc_size = sizeof(rpc_msg_call_t) + sizeof(rpc_header_t);
-	size_t u_int_size = sizeof(u_int);
-
-	if(rpc_size >= len)
-	{
-		return ERR_BUF;
-	}
-
-	memcpy(&create_link_parms->clientId, data + rpc_size, u_int_size);
-	memcpy(&create_link_parms->lockDevice, data + rpc_size + u_int_size, u_int_size);
-	memcpy(&create_link_parms->lock_timeout, data + rpc_size + 2*u_int_size, u_int_size);
-	memcpy(&create_link_parms->device.lenght, data + rpc_size + 3*u_int_size, u_int_size);
-
-	create_link_parms->device.lenght = ntohl(create_link_parms->device.lenght);
-	create_link_parms->clientId = ntohl(create_link_parms->clientId);
-	create_link_parms->lock_timeout = ntohl(create_link_parms->lock_timeout);
-
-	// Don't have to swap bytes
-	memset(create_link_parms->device.contents, 0, VXI11_MAX_DEVICE_NAME);
-	memcpy(create_link_parms->device.contents, data + rpc_size + 4*u_int_size, create_link_parms->device.lenght);
-
-	return ERR_OK;
-
-}
-
-Create_LinkResp vxi11_create_link(Create_LinkParms* create_link_parms)
-{
-	Create_LinkResp create_link_resp;
-
-	lid+=1;
-
-	create_link_resp.abortPort = VXI11_ABORT_PORT;
-	create_link_resp.error = NO_ERR;
-	create_link_resp.maxRecvSize = VXI11_MAX_RECV_SIZE;
-	create_link_resp.lid = lid;
-
-	create_link_resp.abortPort = htonl(create_link_resp.abortPort);
-	create_link_resp.error = htonl(create_link_resp.error);
-	create_link_resp.maxRecvSize = htonl(create_link_resp.maxRecvSize);
-	create_link_resp.lid = htonl(create_link_resp.lid);
-
-
-	return create_link_resp;
-}
-
-// ------------------------------------------------------------------------------------------------------------------------
-
-
-void vxi11_core_write(vxi11_instr_t* vxi11_instr)
-{
-	struct netconn *newconn;
-	struct netbuf* buf;
-
-	netconn_data_t netconn_call;
-	netconn_data_t netconn_reply;
-
-	err_t err = ERR_OK;
-
-	rpc_msg_call_t rpc_msg_call;
-	rpc_msg_reply_t rpc_msg_reply;
-	rpc_header_t rpc_header;
-
-
-
-
-	if(ERR_OK == err)
-	{
-
-		err = netconn_recv(vxi11_instr->core.newconn, &buf);
-
-		if(err != ERR_OK)
-		{
-			vxi11_instr->state = VXI11_RECV_ERR;
-			netconn_close(vxi11_instr->core.newconn);
-
-		}
-
-		netbuf_data(buf, &netconn_call.buffer, &netconn_call.len);
-
-		rpc_tcp_call_parser(netconn_call.buffer, netconn_call.len, &rpc_msg_call, &rpc_header);
-
-		if(DEVICE_CORE == rpc_msg_call.ru.RM_cmb.cb_prog)
-		{
-			if(CREATE_LINK == rpc_msg_call.ru.RM_cmb.cb_proc)
-			{
-				if(ERR_OK == vxi11_create_link_parser(netconn_call.buffer, netconn_call.len, &vxi11_instr->create_link_parms))
-				{
-					vxi11_instr->create_link_resp = vxi11_create_link(&vxi11_instr->create_link_parms);
-					rpc_reply(&rpc_msg_reply, &rpc_msg_call, MSG_ACCEPTED);
-
-
-					size_t sizes[] = {sizeof(rpc_header_t), sizeof(struct accepted_reply), sizeof(Create_LinkResp)};
-					void *sources[] = { &rpc_header, &rpc_msg_reply, &vxi11_instr->create_link_resp};
-
-					for(u_char x = 0; x < sizeof(sizes)/sizeof(sizes[0]); x++)
-					{
-						netconn_reply.len += sizes[x];
-					}
-
-					rpc_header.data = (netconn_reply.len - sizes[2]) | RPC_HEADER_LAST;
-					rpc_header.data = htonl(rpc_header.data);
-
-					netconn_reply.buffer = (char*)malloc(netconn_reply.len);
-
-					vxi11_copy_memory(sources, sizes, sizeof(sizes)/sizeof(sizes[0]), netconn_reply.buffer);
-
-					netconn_write(vxi11_instr->core.newconn, netconn_reply.buffer, netconn_reply.len, NETCONN_NOFLAG);
-
-					free(netconn_reply.buffer);
-				}
-
-			}
-		}
-
-		netbuf_delete(buf);
-
-	}
-
-}
-
-
-err_t vxi11_write_parser(netconn_data_t netconn_data, Device_WriteParms* device_write_parms)
-{
-	size_t sizes[] = {sizeof(rpc_header_t), sizeof(rpc_msg_call_t)};
-	size_t rpc_msg_size = vx11_sum_size(sizes, sizeof(sizes)/sizeof(sizes[0]));
-
-	return ERR_OK;
-
-}
-// ------------------------------------------------------------------------------------------------------------------------
-
-err_t vxi11_device_clear_parser(void* data, u16_t len, Device_GenericParms* device_generic_parms);
-Device_Error vxi11_device_clear(Device_GenericParms* device_generic_parms);
-
-
-void vx11_core_clear(vxi11_instr_t* vxi11_instr)
-{
-
-
-}
-
-err_t vxi11_device_clear_parser(void* data, u16_t len, Device_GenericParms* device_generic_parms)
-{
-	size_t rpc_size = sizeof(rpc_msg_call_t) + sizeof(rpc_header_t);
-	size_t u_int_size = sizeof(u_int);
-
-	if(rpc_size >= len)
-	{
-		return ERR_BUF;
-	}
-
-	memcpy(&device_generic_parms->lid, data + rpc_size, u_int_size);
-	memcpy(&device_generic_parms->flags, data + rpc_size + u_int_size, u_int_size);
-	memcpy(&device_generic_parms->io_timeout, data + rpc_size + 2*u_int_size, u_int_size);
-	memcpy(&device_generic_parms->lock_timeout, data + rpc_size + 3*u_int_size, u_int_size);
-
-	device_generic_parms->lid = ntohl(device_generic_parms->lid);
-	device_generic_parms->flags = ntohl(device_generic_parms->flags);
-	device_generic_parms->io_timeout = ntohl(device_generic_parms->io_timeout);
-	device_generic_parms->lock_timeout = ntohl(device_generic_parms->lock_timeout);
-
-	return ERR_OK;
-}
 
 Device_Error vxi11_device_clear(Device_GenericParms* device_generic_parms)
 {
@@ -459,6 +304,7 @@ void vxi11_server_start(void)
 			vxi11_abort_buffer, &vxi11_abort_control_block);
 
 	vxi11_queue = xQueueCreate(1, sizeof(u_int));
+	netbuf_call_queue = xQueueCreate(1, sizeof(vxi11_netbuf_t));
 }
 
 

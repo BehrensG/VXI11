@@ -102,9 +102,9 @@ err_t rpc_reply(rpc_msg_reply_t* replay, rpc_msg_call_t* call, enum reply_stat a
 
 }
 
-u_int rpc_sum_size(u_int* sizes, u_int len)
+u32_t rpc_sum_size(u32_t* sizes, size_t len)
 {
-	u_int sum = 0;
+	u32_t sum = 0;
 
 	for(u_char i = 0; i < len; i++)
 	{
@@ -114,10 +114,10 @@ u_int rpc_sum_size(u_int* sizes, u_int len)
 	return sum;
 }
 
-void rpc_copy_memory(char* destination, void** sources, size_t* sizes, u_int num_sources)
+void rpc_copy_memory(char* destination, void** sources, size_t* sizes, u32_t num_sources)
 {
     size_t offset = 0;
-    for (u_int i = 0; i < num_sources; i++)
+    for (u32_t i = 0; i < num_sources; i++)
     {
         memcpy(destination + offset, sources[i], sizes[i]);
         offset += sizes[i];

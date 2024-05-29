@@ -52,7 +52,7 @@ typedef int enum_t;
 struct opaque_auth {
         enum_t        oa_flavor;                /* flavor of auth */
    //     caddr_t        oa_base;                /* address of more auth stuff */
-        u_int        oa_length;                /* not to exceed MAX_AUTH_BYTES */
+        u32_t        oa_length;                /* not to exceed MAX_AUTH_BYTES */
 };
 
 /*
@@ -180,7 +180,7 @@ err_t rpc_udp_call_parser(void* data, u16_t len, rpc_msg_call_t* rcp_msg);
 err_t rpc_tcp_call_parser(void* data, u16_t len, rpc_msg_call_t* call, rpc_header_t* header);
 err_t rpc_reply(rpc_msg_reply_t* replay, rpc_msg_call_t* call, enum reply_stat accepted);
 
-void rpc_copy_memory(char* destination, void** sources, size_t* sizes, u_int num_sources);
-u_int rpc_sum_size(u_int* sizes, u_int len);
+void rpc_copy_memory(char* destination, void** sources, size_t* sizes, u32_t num_sources);
+u32_t rpc_sum_size(u32_t* sizes, size_t len);
 
 #endif /* VXI11_INC_RPC_H_ */

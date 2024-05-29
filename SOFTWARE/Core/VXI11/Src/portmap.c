@@ -311,6 +311,7 @@ static void pmap_udp_server_task(void const *argument)
 			switch(pmap_udp_state)
 			{
 				case PMAP_NEW_UDP_DATA: pmap_udp_recv(pmap_udp_netconn); break;
+				default : ; break;
 			}
 
 		}
