@@ -39,7 +39,7 @@ Device_Error vxi11_destroy_link(vxi11_instr_t* vxi11_instr, vxi11_netconn_t* vxi
 		device_error = destroy_link(&device_link);
 
 
-		rpc_reply(&rpc_msg_reply, &rpc_msg_call, MSG_ACCEPTED);
+		rpc_msg_reply_t rpc_msg_reply = rpc_reply(rpc_msg_call.rm_xid, MSG_ACCEPTED);
 
 		size_t sizes[] = {sizeof(rpc_header_t), sizeof(rpc_msg_reply_t), sizeof(Device_Error)};
 		void *sources[] = { &rpc_header, &rpc_msg_reply, &device_error};

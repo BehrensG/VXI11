@@ -178,9 +178,11 @@ typedef struct rpc_header rpc_header_t;
 
 err_t rpc_udp_call_parser(void* data, u16_t len, rpc_msg_call_t* rcp_msg);
 err_t rpc_tcp_call_parser(void* data, u16_t len, rpc_msg_call_t* call, rpc_header_t* header);
-err_t rpc_reply(rpc_msg_reply_t* replay, rpc_msg_call_t* call, enum reply_stat accepted);
+rpc_msg_reply_t rpc_reply(u32_t xid, u32_t rp_stat);
+
 
 void rpc_copy_memory(char* destination, void** sources, size_t* sizes, u32_t num_sources);
-u32_t rpc_sum_size(u32_t* sizes, size_t len);
+size_t rpc_sum_size(size_t* sizes, size_t len);
+void rpc_parser(void* data, u16_t len, rpc_header_t* header, rpc_msg_call_t* rpc_msg);
 
 #endif /* VXI11_INC_RPC_H_ */

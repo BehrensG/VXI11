@@ -70,23 +70,30 @@ static void pmap_tcp_netconn_callback(struct netconn *conn, enum netconn_evt eve
 static err_t pmap_tcp_send(struct netconn* conn, rpc_msg_reply_t* reply, u32_t port)
 {
 	//struct netbuf *buf;
+
 	char* payload;
+
 	rpc_header_t header;
+
 	err_t err;
 
-	size_t sizes[] = {sizeof(rpc_header_t), sizeof(rpc_msg_reply_t), sizeof(u32_t)};
+	size_t rpc_sizes[] = {sizeof(rpc_header_t), sizeof(rpc_msg_reply_t), sizeof(u32_t)};
 
-	size_t len = rpc_sum_size(sizes, sizeof(sizes)/sizeof(sizes[0]));
-	header.data = (len - sizes[0]) | RPC_HEADER_LAST;
+	size_t rpc_sum = rpc_sum_size(rpc_sizes, sizeof(rpc_sizes)/sizeof(rpc_sizes[0]));
+
+	header.data = (rpc_sum - rpc_sizes[0]) | RPC_HEADER_LAST;
 	header.data = htonl(header.data);
-	void *sources[] = { &header, reply, &port};
-	payload = malloc(len);
+
+	void* rpc_sources[] = { &header, reply, &port};
+
+	payload = malloc(rpc_sum);
 
 	if(NULL != payload)
 	{
 
-		rpc_copy_memory(payload, sources, sizes, sizeof(sizes)/sizeof(sizes[0]));
-		err = netconn_write(conn, payload, len, NETCONN_NOFLAG);
+		rpc_copy_memory(payload, rpc_sources, rpc_sizes, sizeof(rpc_sizes)/sizeof(rpc_sizes[0]));
+
+		err = netconn_write(conn, payload, rpc_sum, NETCONN_NOFLAG);
 
 		free(payload);
 
@@ -103,17 +110,17 @@ static err_t pmap_udp_send(struct netconn* conn, rpc_msg_reply_t* reply, u32_t p
 
 	err_t err;
 
-	size_t sizes[] = {sizeof(rpc_msg_reply_t), sizeof(u32_t)};
-	void* sources[] = {reply, &port};
-	size_t size = rpc_sum_size(sizes, sizeof(sizes)/sizeof(sizes[0]));
+	size_t rpc_sizes[] = {sizeof(rpc_msg_reply_t), sizeof(u32_t)};
+	void* rpc_data[] = {reply, &port};
+	size_t rpc_sum = rpc_sum_size(rpc_sizes, sizeof(rpc_sizes)/sizeof(rpc_sizes[0]));
 
 	buf = netbuf_new();
 
 	if(NULL != buf)
 	{
-		payload = netbuf_alloc(buf, size);
+		payload = netbuf_alloc(buf, rpc_sum);
 
-		rpc_copy_memory(payload, sources, sizes, sizeof(sizes)/sizeof(sizes[0]));
+		rpc_copy_memory(payload, rpc_data, rpc_sizes, sizeof(rpc_sizes)/sizeof(rpc_sizes[0]));
 
 
 		err = netconn_connect(conn, pmap_udp_conn.addr, pmap_udp_conn.port);
@@ -124,6 +131,7 @@ static err_t pmap_udp_send(struct netconn* conn, rpc_msg_reply_t* reply, u32_t p
 
 		err = netconn_close(conn);
 		err = netconn_delete(conn);
+
 		pmap_udp_netconn = pmap_netconn_bind(NETCONN_UDP, pmap_udp_netconn_callback, PMAPPORT);
 	}
 
@@ -180,7 +188,7 @@ err_t pmap_udp_recv(struct netconn *conn)
 
 		netbuf_data(buf, &data, &len);
 
-		err = rpc_udp_call(data, len, &rcp_msg);
+		rpc_parser(data, len, NULL, &rcp_msg);
 
 		if((CALL == rcp_msg.rm_direction))
 		{
@@ -221,7 +229,7 @@ err_t pmap_tcp_recv(struct netconn *conn)
 
 		netbuf_data(buf, &data, &len);
 
-		err = rpc_tcp_call_parser(data, len, &rcp_msg, &header);
+		rpc_parser(data, len, &header, &rcp_msg);
 
 		if((CALL == rcp_msg.rm_direction))
 		{
@@ -245,8 +253,8 @@ static err_t pmap_getport_proc(rpc_msg_call_t* call, void* data, uint16_t len, u
 	pmap_t pmap;
 	err_t err;
 
-	rpc_msg_reply_t reply;
 	u32_t port = 1024;
+	rpc_msg_reply_t reply;
 
 	size_t offset = sizeof(struct call_body) + 2 * sizeof(u32_t);
 	size_t size = 0;
@@ -263,7 +271,8 @@ static err_t pmap_getport_proc(rpc_msg_call_t* call, void* data, uint16_t len, u
 
 		port = htonl(port);
 
-		err = rpc_reply(&reply, call, MSG_ACCEPTED);
+		//err = rpc_reply(&reply, call, MSG_ACCEPTED);
+		reply = rpc_reply(&call->rm_xid, MSG_ACCEPTED);
 
 
 		if(IPPROTO_UDP == protocol)
@@ -331,16 +340,16 @@ static void pmap_tcp_server_task(void const *argument)
 			switch(pmap_tcp_state)
 			{
 				case PMAP_NEW_TCP_DATA:
-					{
-						netconn_accept(pmap_tcp_netconn, &pmap_tcp_newconn);
-						pmap_tcp_recv(pmap_tcp_newconn);
-					};break;
+				{
+					netconn_accept(pmap_tcp_netconn, &pmap_tcp_newconn);
+					pmap_tcp_recv(pmap_tcp_newconn);
+				};break;
 				case PMAP_CLOSE_TCP :
 				{
 					netconn_close(pmap_tcp_newconn);
 					netconn_delete(pmap_tcp_newconn);
-				}
-				 default: osDelay(pdMS_TO_TICKS(10)); ;break;
+				};break;
+				 default: osDelay(pdMS_TO_TICKS(10)); break;
 			}
 
 		}

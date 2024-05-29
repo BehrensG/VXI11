@@ -32,7 +32,6 @@ Create_LinkResp vxi11_create_link(vxi11_instr_t* vxi11_instr, vxi11_netconn_t* v
 	Create_LinkResp create_link_resp;
 
 	rpc_msg_call_t rpc_msg_call;
-	rpc_msg_reply_t rpc_msg_reply;
 	rpc_header_t rpc_header;
 
 	vxi11_netbuf_t vxi11_netbuf_reply;
@@ -47,7 +46,7 @@ Create_LinkResp vxi11_create_link(vxi11_instr_t* vxi11_instr, vxi11_netconn_t* v
 		memcpy(&vxi11_instr->create_link_parms,&create_link_parms,sizeof(Create_LinkParms));
 		memcpy(&vxi11_instr->create_link_resp,&create_link_resp,sizeof(Create_LinkResp));
 
-		rpc_reply(&rpc_msg_reply, &rpc_msg_call, MSG_ACCEPTED);
+		rpc_msg_reply_t rpc_msg_reply = rpc_reply(rpc_msg_call.rm_xid, MSG_ACCEPTED);
 
 		size_t sizes[] = {sizeof(rpc_header_t), sizeof(rpc_msg_reply_t), sizeof(Create_LinkResp)};
 		void *sources[] = { &rpc_header, &rpc_msg_reply, &create_link_resp};
@@ -79,10 +78,7 @@ void vxi11_core_connect(vxi11_instr_t* vxi11_instr)
 	err_t err = ERR_OK;
 
 	rpc_msg_call_t rpc_msg_call;
-	rpc_msg_reply_t rpc_msg_reply;
 	rpc_header_t rpc_header;
-
-
 
 	err = netconn_accept(vxi11_instr->core.conn, &newconn);
 
@@ -111,7 +107,8 @@ void vxi11_core_connect(vxi11_instr_t* vxi11_instr)
 				if(ERR_OK == vxi11_create_link_parser(netconn_call.buffer, netconn_call.len, &vxi11_instr->create_link_parms))
 				{
 					vxi11_instr->create_link_resp = create_link(&vxi11_instr->create_link_parms);
-					rpc_reply(&rpc_msg_reply, &rpc_msg_call, MSG_ACCEPTED);
+
+					rpc_msg_reply_t rpc_msg_reply = rpc_reply(rpc_msg_call.rm_xid, MSG_ACCEPTED);
 
 
 					size_t sizes[] = {sizeof(rpc_header_t), sizeof(rpc_msg_reply_t), sizeof(Create_LinkResp)};

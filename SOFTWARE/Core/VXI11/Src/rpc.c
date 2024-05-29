@@ -75,36 +75,10 @@ err_t rpc_tcp_call_parser(void* data, u16_t len, rpc_msg_call_t* call, rpc_heade
 
 }
 
-err_t rpc_reply(rpc_msg_reply_t* replay, rpc_msg_call_t* call, enum reply_stat accepted)
+
+size_t rpc_sum_size(size_t* sizes, size_t len)
 {
-
-	err_t err = ERR_OK;
-	memset(replay, 0, sizeof(rpc_msg_reply_t));
-
-	if(MSG_ACCEPTED == accepted)
-	{
-		replay->rm_xid = call->rm_xid;
-		replay->rm_direction = REPLY;
-		replay->ru.RM_rmb.rp_stat = MSG_ACCEPTED;
-
-		replay->ru.RM_rmb.ru.RP_ar.ar_verf.oa_flavor = 0;
-		replay->ru.RM_rmb.ac_stat = 0;
-
-
-		rcp_reply_swap(replay);
-	}
-	else
-	{
-		// TBD - call was not accepted
-		// Currently see no need to implement it
-	}
-	return err;
-
-}
-
-u32_t rpc_sum_size(u32_t* sizes, size_t len)
-{
-	u32_t sum = 0;
+	size_t sum = 0;
 
 	for(u_char i = 0; i < len; i++)
 	{
@@ -122,4 +96,42 @@ void rpc_copy_memory(char* destination, void** sources, size_t* sizes, u32_t num
         memcpy(destination + offset, sources[i], sizes[i]);
         offset += sizes[i];
     }
+}
+
+
+void rpc_parser(void* data, u16_t len, rpc_header_t* header, rpc_msg_call_t* rpc_msg)
+{
+	u32_t offset = 0;
+
+	if(NULL != header)
+	{
+		memcpy(header, data, RPC_HEADER_SIZE);
+		header->data = ntohl(header->data);
+		offset = RPC_HEADER_SIZE;
+	}
+
+	memcpy(rpc_msg, data + offset, sizeof(rpc_msg_call_t));
+
+	rcp_call_swap(rpc_msg);
+}
+
+
+rpc_msg_reply_t rpc_reply(u32_t xid, u32_t rp_stat)
+{
+	rpc_msg_reply_t reply;
+
+	memset(&reply, 0, sizeof(rpc_msg_reply_t));
+
+	reply.rm_xid = xid;
+	reply.rm_direction = REPLY;
+	reply.ru.RM_rmb.rp_stat = rp_stat;
+
+	reply.ru.RM_rmb.ru.RP_ar.ar_verf.oa_flavor = 0;
+	reply.ru.RM_rmb.ac_stat = 0;
+
+
+	rcp_reply_swap(&reply);
+
+	return reply;
+
 }

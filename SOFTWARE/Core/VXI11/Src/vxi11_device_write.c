@@ -65,7 +65,6 @@ Device_WriteResp vxi11_device_write(vxi11_instr_t* vxi11_instr, vxi11_netconn_t*
 {
 
 	rpc_msg_call_t rpc_msg_call;
-	rpc_msg_reply_t rpc_msg_reply;
 	rpc_header_t rpc_header;
 
 	Device_WriteResp device_write_resp;
@@ -83,7 +82,7 @@ Device_WriteResp vxi11_device_write(vxi11_instr_t* vxi11_instr, vxi11_netconn_t*
 		memcpy(&vxi11_instr->device_write_resp, &device_write_resp, sizeof(Device_WriteResp));
 
 
-		rpc_reply(&rpc_msg_reply, &rpc_msg_call, MSG_ACCEPTED);
+		rpc_msg_reply_t rpc_msg_reply = rpc_reply(rpc_msg_call.rm_xid, MSG_ACCEPTED);
 
 		size_t sizes[] = {sizeof(rpc_header_t), sizeof(rpc_msg_reply_t), sizeof(Device_WriteResp)};
 		void *sources[] = { &rpc_header, &rpc_msg_reply, &device_write_resp};
