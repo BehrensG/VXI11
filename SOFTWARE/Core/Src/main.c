@@ -319,8 +319,8 @@ void StartDefaultTask(void const * argument)
   /* Infinite loop */
   for(;;)
   {
-	  HAL_GPIO_TogglePin(LD1_GPIO_Port, LD1_Pin);
-	  osDelay(pdMS_TO_TICKS(100));
+	//  HAL_GPIO_TogglePin(LD1_GPIO_Port, LD1_Pin);
+	  osDelay(pdMS_TO_TICKS(5));
   }
   /* USER CODE END 5 */
 }

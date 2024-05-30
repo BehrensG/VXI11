@@ -29,7 +29,7 @@ err_t vxi11_device_write_parser(void* data, u16_t len, Device_WriteParms* device
 
 	for(u8_t i = 0; i < 5; i++)
 	{
-		memcpy(device_write_parms, data + rpc_msg_end + offset, sizeof(u32_t));
+		memcpy(device_write_parms + offset, data + rpc_msg_end + offset, sizeof(u32_t));
 		offset += sizeof(u32_t);
 	}
 
@@ -54,9 +54,18 @@ Device_WriteResp device_write(Device_WriteParms* device_write_parms)
 
 	if (device_write_parms->lid == lid)
 	{
-		device_write_resp.error = 0;
-		device_write_resp.size = device_write_parms->data.data_len;
+		device_write_resp.error = NO_ERR;
+
 	}
+	else
+	{
+		device_write_resp.error = INVALID_LINK_IDENTIFIER;
+	}
+
+	device_write_resp.size = device_write_parms->data.data_len;
+
+	device_write_resp.error = htonl(device_write_resp.error);
+	device_write_resp.size = htonl(device_write_resp.size);
 
 	return device_write_resp;
 }

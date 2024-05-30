@@ -15,7 +15,7 @@
 #include "portmap.h"
 #include "vxi11.h"
 
-
+extern Device_Link lid;
 
 Device_ReadResp device_read(Device_ReadParms* device_read_parms)
 {
@@ -23,16 +23,38 @@ Device_ReadResp device_read(Device_ReadParms* device_read_parms)
 
 	char test_string[] = "Test device,ABC123,1.2 5-1,35-0.12343";
 	size_t str_len = strlen(test_string);
+	u8_t term_char = device_read_parms->termChar;
+
+	if (device_read_parms->lid == lid)
+	{
+		device_read_resp.error = NO_ERR;
+
+		if(!term_char)
+		{
+			term_char = 0xA;
+		}
 
 
-	memcpy(device_read_resp.data.data_val, test_string, str_len);
-	memcpy(device_read_resp.data.data_val + str_len, &device_read_parms->termChar, 1); // termination char
+		memcpy(device_read_resp.data.data_val, test_string, str_len);
+		memcpy(device_read_resp.data.data_val + str_len, &term_char, 1); // termination char
 
-	device_read_resp.data.data_len = str_len + 1; // add termination char
+		device_read_resp.data.data_len = str_len + 1; // add termination char
 
-	device_read_resp.error = 0;
-	device_read_resp.reason = VXI11_READ_REASON_END;
+		device_read_resp.reason = VXI11_READ_REASON_END;
 
+	}
+	else
+	{
+		device_read_resp.error = INVALID_LINK_IDENTIFIER;
+		device_read_resp.data.data_len = 0;
+		device_read_resp.reason = 0;
+		memset(device_read_resp.data.data_val, 0, VXI11_MAX_RECV_SIZE);
+	}
+
+
+	device_read_resp.error =htonl(device_read_resp.error);
+	device_read_resp.reason =htonl(device_read_resp.reason);
+	device_read_resp.data.data_len = htonl(device_read_resp.data.data_len);
 
 	return device_read_resp;
 
@@ -48,7 +70,7 @@ err_t vxi11_device_read_parser(void* data, u16_t len, Device_ReadParms* device_r
 
 	for(u8_t i = 0; i < 6; i++)
 	{
-		memcpy(device_read_parms, data + rpc_msg_end + offset, sizeof(u32_t));
+		memcpy(device_read_parms + offset, data + rpc_msg_end + offset, sizeof(u32_t));
 		offset += sizeof(u32_t);
 	}
 
@@ -91,7 +113,8 @@ Device_ReadResp vxi11_device_read(vxi11_instr_t* vxi11_instr, vxi11_netconn_t* v
 		size_t sizes[] = {sizeof(rpc_header_t), sizeof(rpc_msg_reply_t), sizeof(Device_ReadResp)};
 		void *sources[] = { &rpc_header, &rpc_msg_reply, &device_read_resp};
 
-		vxi11_netbuf_reply.len = rpc_sum_size(sizes, sizeof(sizes)/sizeof(sizes[0]));
+		u32_t data_len = ntohl(device_read_resp.data.data_len);
+		vxi11_netbuf_reply.len = rpc_sum_size(sizes, sizeof(sizes)/sizeof(sizes[0])) - (VXI11_MAX_RECV_SIZE - data_len);
 
 		rpc_header.data = (vxi11_netbuf_reply.len - sizes[0]) | RPC_HEADER_LAST;
 

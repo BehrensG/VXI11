@@ -32,7 +32,9 @@ typedef enum
 	VXI11_IDLE,
 	VXI11_CONNECT,
 	VXI11_RECV_ERR,
-	VXI11_MSG
+	VXI11_MSG,
+	VXI11_ACCEPT,
+	VXI11_RECV
 
 }vxi11_state_t;
 
@@ -72,6 +74,7 @@ void vxi11_core_connect(vxi11_instr_t* vxi11_instr);
 
 Create_LinkResp vxi11_create_link(vxi11_instr_t* vxi11_instr, vxi11_netconn_t* vxi11_netconn, vxi11_netbuf_t* vxi11_netbuf_call);
 Device_WriteResp vxi11_device_write(vxi11_instr_t* vxi11_instr, vxi11_netconn_t* vxi11_netconn, vxi11_netbuf_t* vxi11_netbuf_call);
+Device_ReadResp vxi11_device_read(vxi11_instr_t* vxi11_instr, vxi11_netconn_t* vxi11_netconn, vxi11_netbuf_t* vxi11_netbuf_call);
 Device_Error vxi11_destroy_link(vxi11_instr_t* vxi11_instr, vxi11_netconn_t* vxi11_netconn, vxi11_netbuf_t* vxi11_netbuf_call);
 
 #endif /* VXI11_INC_VXI11_H_ */

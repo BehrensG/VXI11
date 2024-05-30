@@ -272,7 +272,7 @@ static err_t pmap_getport_proc(rpc_msg_call_t* call, void* data, uint16_t len, u
 		port = htonl(port);
 
 		//err = rpc_reply(&reply, call, MSG_ACCEPTED);
-		reply = rpc_reply(&call->rm_xid, MSG_ACCEPTED);
+		reply = rpc_reply(call->rm_xid, MSG_ACCEPTED);
 
 
 		if(IPPROTO_UDP == protocol)
@@ -301,7 +301,7 @@ static struct netconn*  pmap_netconn_bind( enum netconn_type type, netconn_callb
 	{
 		netconn_listen(conn);
 	#if LWIP_SO_RCVTIMEO == 1
-		netconn_set_recvtimeout(conn, 1000);
+		netconn_set_recvtimeout(conn, 20000);
 	#endif
 	}
 
@@ -320,7 +320,7 @@ static void pmap_udp_server_task(void const *argument)
 			switch(pmap_udp_state)
 			{
 				case PMAP_NEW_UDP_DATA: pmap_udp_recv(pmap_udp_netconn); break;
-				default : ; break;
+				default : osDelay(pdMS_TO_TICKS(10)); break;
 			}
 
 		}
@@ -353,7 +353,7 @@ static void pmap_tcp_server_task(void const *argument)
 			}
 
 		}
-		osDelay(pdMS_TO_TICKS(10));
+			osDelay(pdMS_TO_TICKS(10));
 	}
 }
 
