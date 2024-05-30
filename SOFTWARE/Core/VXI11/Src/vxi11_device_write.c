@@ -70,45 +70,43 @@ Device_WriteResp device_write(Device_WriteParms* device_write_parms)
 	return device_write_resp;
 }
 
-Device_WriteResp vxi11_device_write(vxi11_instr_t* vxi11_instr, vxi11_netconn_t* vxi11_netconn, vxi11_netbuf_t* vxi11_netbuf_call)
+Device_WriteResp vxi11_device_write(vxi11_instr_t* vxi11_instr)
 {
 
 	rpc_msg_call_t rpc_msg_call;
 	rpc_header_t rpc_header;
 
-	Device_WriteResp device_write_resp;
-	Device_WriteParms device_write_parms;
 
-	vxi11_netbuf_t vxi11_netbuf_reply;
+	//vxi11_netbuf_t vxi11_netbuf_reply;
 
-	rpc_tcp_call_parser(vxi11_netbuf_call->data, vxi11_netbuf_call->len, &rpc_msg_call, &rpc_header);
+	rpc_tcp_call_parser(vxi11_instr->core.netbuf.data, vxi11_instr->core.netbuf.len, &rpc_msg_call, &rpc_header);
 
-	if(ERR_OK == vxi11_device_write_parser(vxi11_netbuf_call->data, vxi11_netbuf_call->len, &device_write_parms))
+	if(ERR_OK == vxi11_device_write_parser(vxi11_instr->core.netbuf.data, vxi11_instr->core.netbuf.len, &vxi11_instr->core.device_write_parms))
 	{
-		device_write_resp = device_write(&device_write_parms);
+		vxi11_instr->core.device_write_resp = device_write(&vxi11_instr->core.device_write_parms);
 
-		memcpy(&vxi11_instr->core.device_write_parms, &device_write_parms, sizeof(Device_WriteParms));
-		memcpy(&vxi11_instr->core.device_write_resp, &device_write_resp, sizeof(Device_WriteResp));
+		//memcpy(&vxi11_instr->core.device_write_parms, &device_write_parms, sizeof(Device_WriteParms));
+		//memcpy(&vxi11_instr->core.device_write_resp, &device_write_resp, sizeof(Device_WriteResp));
 
 
 		rpc_msg_reply_t rpc_msg_reply = rpc_reply(rpc_msg_call.rm_xid, MSG_ACCEPTED);
 
 		size_t sizes[] = {sizeof(rpc_header_t), sizeof(rpc_msg_reply_t), sizeof(Device_WriteResp)};
-		void *sources[] = { &rpc_header, &rpc_msg_reply, &device_write_resp};
+		void *sources[] = { &rpc_header, &rpc_msg_reply, &vxi11_instr->core.device_write_resp};
 
-		vxi11_netbuf_reply.len = rpc_sum_size(sizes, sizeof(sizes)/sizeof(sizes[0]));
+		vxi11_instr->core.netbuf.len = rpc_sum_size(sizes, sizeof(sizes)/sizeof(sizes[0]));
 
-		rpc_header.data = (vxi11_netbuf_reply.len - sizes[0]) | RPC_HEADER_LAST;
+		rpc_header.data = (vxi11_instr->core.netbuf.len - sizes[0]) | RPC_HEADER_LAST;
 
 		rpc_header.data = htonl(rpc_header.data);
 
 
-		rpc_copy_memory(vxi11_netbuf_reply.data, sources, sizes, sizeof(sizes)/sizeof(sizes[0]));
+		rpc_copy_memory(vxi11_instr->core.netbuf.data, sources, sizes, sizeof(sizes)/sizeof(sizes[0]));
 
-		netconn_write(vxi11_netconn->newconn, vxi11_netbuf_reply.data, vxi11_netbuf_reply.len, NETCONN_NOFLAG);
+		netconn_write(vxi11_instr->core.netconn.newconn, vxi11_instr->core.netbuf.data, vxi11_instr->core.netbuf.len, NETCONN_NOFLAG);
 		HAL_Delay(1);
 
 	}
 
-	return device_write_resp;
+	return vxi11_instr->core.device_write_resp;
 }

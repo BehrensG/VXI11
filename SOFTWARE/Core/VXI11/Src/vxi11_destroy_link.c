@@ -19,7 +19,7 @@
 Device_Error destroy_link(Device_Link* device_link);
 err_t vxi11_destroy_link_parser(void* data, u16_t len, Device_Link* device_link);
 
-Device_Error vxi11_destroy_link(vxi11_instr_t* vxi11_instr, vxi11_netconn_t* vxi11_netconn, vxi11_netbuf_t* vxi11_netbuf_call)
+Device_Error vxi11_destroy_link(vxi11_instr_t* vxi11_instr)
 {
 
 	Device_Link device_link;
@@ -29,11 +29,10 @@ Device_Error vxi11_destroy_link(vxi11_instr_t* vxi11_instr, vxi11_netconn_t* vxi
 	rpc_msg_reply_t rpc_msg_reply;
 	rpc_header_t rpc_header;
 
-	vxi11_netbuf_t vxi11_netbuf_reply;
 
-	rpc_tcp_call_parser(vxi11_netbuf_call->data, vxi11_netbuf_call->len, &rpc_msg_call, &rpc_header);
+	rpc_tcp_call_parser(vxi11_instr->core.netbuf.data, vxi11_instr->core.netbuf.len, &rpc_msg_call, &rpc_header);
 
-	if(ERR_OK == vxi11_destroy_link_parser(vxi11_netbuf_call->data, vxi11_netbuf_call->len, &device_link))
+	if(ERR_OK == vxi11_destroy_link_parser(vxi11_instr->core.netbuf.data, vxi11_instr->core.netbuf.len, &device_link))
 	{
 
 		device_error = destroy_link(&device_link);
@@ -44,18 +43,21 @@ Device_Error vxi11_destroy_link(vxi11_instr_t* vxi11_instr, vxi11_netconn_t* vxi
 		size_t sizes[] = {sizeof(rpc_header_t), sizeof(rpc_msg_reply_t), sizeof(Device_Error)};
 		void *sources[] = { &rpc_header, &rpc_msg_reply, &device_error};
 
-		vxi11_netbuf_reply.len = rpc_sum_size(sizes, sizeof(sizes)/sizeof(sizes[0]));
+		vxi11_instr->core.netbuf.len = rpc_sum_size(sizes, sizeof(sizes)/sizeof(sizes[0]));
 
-		rpc_header.data = (vxi11_netbuf_reply.len - sizes[0]) | RPC_HEADER_LAST;
+		rpc_header.data = (vxi11_instr->core.netbuf.len - sizes[0]) | RPC_HEADER_LAST;
 
 		rpc_header.data = htonl(rpc_header.data);
 
 
-		rpc_copy_memory(vxi11_netbuf_reply.data, sources, sizes, sizeof(sizes)/sizeof(sizes[0]));
+		rpc_copy_memory(vxi11_instr->core.netbuf.data, sources, sizes, sizeof(sizes)/sizeof(sizes[0]));
 
-		netconn_write(vxi11_netconn->newconn, vxi11_netbuf_reply.data, vxi11_netbuf_reply.len, NETCONN_NOFLAG);
+		netconn_write(vxi11_instr->core.netconn.newconn, vxi11_instr->core.netbuf.data, vxi11_instr->core.netbuf.len, NETCONN_NOFLAG);
 		HAL_Delay(1);
+		netconn_shutdown(vxi11_instr->core.netconn.newconn, 1,1);
+		netconn_close(vxi11_instr->core.netconn.newconn);
 
+		netconn_delete(vxi11_instr->core.netconn.newconn);
 
 	}
 

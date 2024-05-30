@@ -48,6 +48,7 @@ typedef struct {
 typedef struct {
 	struct netconn* newconn;
 	struct netconn* conn;
+	u8_t accept;
 }vxi11_netconn_t;
 
 typedef struct {
@@ -80,9 +81,9 @@ typedef struct
 void vxi11_server_start(void);
 void vxi11_core_connect(vxi11_instr_t* vxi11_instr);
 
-Create_LinkResp vxi11_create_link(vxi11_instr_t* vxi11_instr, vxi11_netconn_t* vxi11_netconn, vxi11_netbuf_t* vxi11_netbuf_call);
-Device_WriteResp vxi11_device_write(vxi11_instr_t* vxi11_instr, vxi11_netconn_t* vxi11_netconn, vxi11_netbuf_t* vxi11_netbuf_call);
-Device_ReadResp vxi11_device_read(vxi11_instr_t* vxi11_instr, vxi11_netconn_t* vxi11_netconn, vxi11_netbuf_t* vxi11_netbuf_call);
-Device_Error vxi11_destroy_link(vxi11_instr_t* vxi11_instr, vxi11_netconn_t* vxi11_netconn, vxi11_netbuf_t* vxi11_netbuf_call);
+Create_LinkResp vxi11_create_link(vxi11_instr_t* vxi11_instr);
+Device_WriteResp vxi11_device_write(vxi11_instr_t* vxi11_instr);
+Device_ReadResp vxi11_device_read(vxi11_instr_t* vxi11_instr);
+Device_Error vxi11_destroy_link(vxi11_instr_t* vxi11_instr);
 
 #endif /* VXI11_INC_VXI11_H_ */

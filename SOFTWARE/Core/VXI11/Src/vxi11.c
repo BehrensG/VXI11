@@ -111,10 +111,9 @@ static void vxi11_core_callback_v2(struct netconn *conn, enum netconn_evt even, 
 		else
 		{
 			vxi11_state = VXI11_RECV;
-
+			xQueueSend(vxi11_queue, &vxi11_state, 1000);
 		}
 
-		xQueueSend(vxi11_queue, &vxi11_state, 10000);
 	}
 }
 
@@ -183,10 +182,10 @@ static void vxi11_core_task_v2(void const *argument)
 		{
 			switch(vxi11_netconn_recv(&vxi11_instr))
 			{
-				case VXI11_CREATE_LINK : vxi11_create_link(&vxi11_instr, &vxi11_instr.core.netconn, &vxi11_instr.core.netbuf); break;
-				case VXI11_DEVICE_WRITE : vxi11_device_write(&vxi11_instr, &vxi11_instr.core.netconn, &vxi11_instr.core.netbuf); break;
-				case VXI11_DEVICE_READ : vxi11_device_read(&vxi11_instr, &vxi11_instr.core.netconn, &vxi11_instr.core.netbuf); break;
-				case VXI11_DESTROY_LINK : vxi11_destroy_link(&vxi11_instr, &vxi11_instr.core.netconn, &vxi11_instr.core.netbuf); break;
+				case VXI11_CREATE_LINK : vxi11_create_link(&vxi11_instr); break;
+				case VXI11_DEVICE_WRITE : vxi11_device_write(&vxi11_instr); break;
+				case VXI11_DEVICE_READ : vxi11_device_read(&vxi11_instr); break;
+				case VXI11_DESTROY_LINK : vxi11_destroy_link(&vxi11_instr); break;
 				default :/* DO NOTHING HERE, DON'T ADD WAITS ! */ ; break;
 			}
 		}
@@ -254,7 +253,7 @@ static vxi11_state_t vx11_queue()
 {
 
 	vxi11_state_t vxi11_state;
-	if(pdTRUE == xQueueReceive(vxi11_queue, &vxi11_state, 1000U))
+	if(pdTRUE == xQueueReceive(vxi11_queue, &vxi11_state, 10000U))
 	{
 		vxi11_state = vxi11_state;
 	}
