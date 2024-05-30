@@ -87,8 +87,8 @@ Device_WriteResp vxi11_device_write(vxi11_instr_t* vxi11_instr, vxi11_netconn_t*
 	{
 		device_write_resp = device_write(&device_write_parms);
 
-		memcpy(&vxi11_instr->device_write_parms, &device_write_parms, sizeof(Device_WriteParms));
-		memcpy(&vxi11_instr->device_write_resp, &device_write_resp, sizeof(Device_WriteResp));
+		memcpy(&vxi11_instr->core.device_write_parms, &device_write_parms, sizeof(Device_WriteParms));
+		memcpy(&vxi11_instr->core.device_write_resp, &device_write_resp, sizeof(Device_WriteResp));
 
 
 		rpc_msg_reply_t rpc_msg_reply = rpc_reply(rpc_msg_call.rm_xid, MSG_ACCEPTED);

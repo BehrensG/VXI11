@@ -104,8 +104,8 @@ Device_ReadResp vxi11_device_read(vxi11_instr_t* vxi11_instr, vxi11_netconn_t* v
 	{
 		device_read_resp = device_read(&device_read_parms);
 
-		memcpy(&vxi11_instr->device_read_parms, &device_read_parms, sizeof(Device_ReadParms));
-		memcpy(&vxi11_instr->device_read_resp, &device_read_resp, sizeof(Device_ReadResp));
+		memcpy(&vxi11_instr->core.device_read_parms, &device_read_parms, sizeof(Device_ReadParms));
+		memcpy(&vxi11_instr->core.device_read_resp, &device_read_resp, sizeof(Device_ReadResp));
 
 
 		rpc_msg_reply_t rpc_msg_reply = rpc_reply(rpc_msg_call.rm_xid, MSG_ACCEPTED);

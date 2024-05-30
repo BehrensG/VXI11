@@ -50,13 +50,7 @@ typedef struct {
 	struct netconn* conn;
 }vxi11_netconn_t;
 
-
-typedef struct
-{
-	vxi11_state_t state;
-	vxi11_netconn_t core;
-	vxi11_netconn_t abort;
-	vxi11_conn_info_t conn_info;
+typedef struct {
 	Create_LinkParms create_link_parms;
 	Create_LinkResp create_link_resp;
 	Device_GenericParms device_clear;
@@ -64,8 +58,22 @@ typedef struct
 	Device_WriteParms device_write_parms;
 	Device_ReadResp device_read_resp;
 	Device_ReadParms device_read_parms;
+	vxi11_netconn_t netconn;
+	vxi11_netbuf_t netbuf;
+}vxi11_core_t;
+
+typedef struct {
+	vxi11_netconn_t netconn;
+}vxi11_abort_t;
+
+typedef struct
+{
+	vxi11_state_t state;
+
 	// New
-	vxi11_netconn_t vxi11_netconn;
+	vxi11_core_t core;
+	vxi11_abort_t abort;
+
 }vxi11_instr_t;
 
 
