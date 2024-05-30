@@ -61,7 +61,7 @@ Create_LinkResp vxi11_create_link(vxi11_instr_t* vxi11_instr, vxi11_netconn_t* v
 		rpc_copy_memory(vxi11_netbuf_reply.data, sources, sizes, sizeof(sizes)/sizeof(sizes[0]));
 
 		netconn_write(vxi11_netconn->newconn, vxi11_netbuf_reply.data, vxi11_netbuf_reply.len, NETCONN_NOFLAG);
-
+		HAL_Delay(1);
 	}
 
 	return create_link_resp;

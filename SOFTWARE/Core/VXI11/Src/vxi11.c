@@ -80,6 +80,11 @@ vx11_procedure_t vx11_netconn_parser(vxi11_netbuf_t* vxi11_netconn_call)
 
 		if(DEVICE_CORE == call.ru.RM_cmb.cb_prog)
 		{
+
+			if (call.ru.RM_cmb.cb_proc > 20)
+			{
+				vxi11_procedure = call.ru.RM_cmb.cb_proc;
+			}
 			return (vx11_procedure_t)call.ru.RM_cmb.cb_proc;
 		}
 		else
@@ -97,26 +102,29 @@ vx11_procedure_t vx11_netconn_parser(vxi11_netbuf_t* vxi11_netconn_call)
 }
 
 
-
 static void vxi11_core_callback_v2(struct netconn *conn, enum netconn_evt even, u16_t len)
 {
+
 	if(NETCONN_EVT_RCVPLUS == even)
 	{
 		if(NULL == vxi11_netconn.newconn)
 		{
-			vxi11_state = VXI11_ACCEPT;
+			struct netconn *newconn;
+			netconn_accept(vxi11_netconn.conn, &newconn);
+			vxi11_netconn.newconn = newconn;
 		}
 		else
 		{
 			vxi11_state = VXI11_RECV;
+
 		}
 
-		xQueueSend(vxi11_queue, &vxi11_state, 10);
+		xQueueSend(vxi11_queue, &vxi11_state, 10000);
 	}
 }
 
 
-vx11_procedure_t vxi11_recv()
+vx11_procedure_t vxi11_netconn_recv()
 {
 	vx11_procedure_t vx11_procedure;
 
@@ -128,6 +136,7 @@ vx11_procedure_t vxi11_recv()
 
 	vxi11_netbuf_call.len = 0;
 
+	netconn_set_recvtimeout(vxi11_netconn.newconn, 1000);
 	err = netconn_recv(vxi11_netconn.newconn, &buf);
 
 	if(ERR_OK == err)
@@ -158,6 +167,8 @@ vx11_procedure_t vxi11_recv()
 	}
 	else
 	{
+		netconn_close(vxi11_netconn.newconn);
+		netconn_delete(vxi11_netconn.newconn);
 		vx11_procedure = VXI11_ERROR;
 	}
 
@@ -167,38 +178,27 @@ vx11_procedure_t vxi11_recv()
 
 static void vxi11_core_task_v2(void const *argument)
 {
-	struct netconn *newconn;
-	vx11_procedure_t vxi11_procedure;
-	err_t err;
+	//struct netconn *newconn;
 
 	vxi11_netconn.conn = vxi11_bind(vxi11_core_callback_v2, VXI11_PORT);
 
 	for (;;)
 	{
-		switch(vx11_queue())
+		if(VXI11_RECV == vx11_queue())
 		{
-			case VXI11_ACCEPT :
-				{
-					err = netconn_accept(vxi11_netconn.conn, &newconn);
-					vxi11_netconn.newconn = newconn;
-				};
-
-			case VXI11_RECV :
-				{
-					vxi11_procedure = vxi11_recv();
-					switch(vxi11_procedure)
-					{
-						case VXI11_CREATE_LINK : vxi11_create_link(&vxi11_instr, &vxi11_netconn, &vxi11_netbuf_call); break;
-						case VXI11_DEVICE_WRITE : vxi11_device_write(&vxi11_instr, &vxi11_netconn, &vxi11_netbuf_call); break;
-						case VXI11_DEVICE_READ : vxi11_device_read(&vxi11_instr, &vxi11_netconn, &vxi11_netbuf_call); break;
-						case VXI11_DESTROY_LINK : vxi11_destroy_link(&vxi11_instr, &vxi11_netconn, &vxi11_netbuf_call); break;
-						default :/* DO NOTHING HERE, DON'T ADD WAITS ! */ ; break;
-					}
-				}; break;
-
-			default :/* DO NOTHING HERE, DON'T ADD WAITS ! */; break;
+			switch(vxi11_netconn_recv())
+			{
+				case VXI11_CREATE_LINK : vxi11_create_link(&vxi11_instr, &vxi11_netconn, &vxi11_netbuf_call); break;
+				case VXI11_DEVICE_WRITE : vxi11_device_write(&vxi11_instr, &vxi11_netconn, &vxi11_netbuf_call); break;
+				case VXI11_DEVICE_READ : vxi11_device_read(&vxi11_instr, &vxi11_netconn, &vxi11_netbuf_call); break;
+				case VXI11_DESTROY_LINK : vxi11_destroy_link(&vxi11_instr, &vxi11_netconn, &vxi11_netbuf_call); break;
+				default :/* DO NOTHING HERE, DON'T ADD WAITS ! */ ; break;
+			}
 		}
+		else
+		{
 
+		}
 	}
 }
 
@@ -265,7 +265,7 @@ static vxi11_state_t vx11_queue()
 {
 
 	vxi11_state_t vxi11_state;
-	if(pdTRUE == xQueueReceive(vxi11_queue, &vxi11_state, 5U))
+	if(pdTRUE == xQueueReceive(vxi11_queue, &vxi11_state, 1000U))
 	{
 		vxi11_state = vxi11_state;
 	}

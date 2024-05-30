@@ -21,7 +21,7 @@ Device_ReadResp device_read(Device_ReadParms* device_read_parms)
 {
 	Device_ReadResp device_read_resp;
 
-	char test_string[] = "Test device,ABC123,1.2 5-1,35-0.12343";
+	char test_string[] = "Agilent Technologies,34410A,MY47019757,2.35-2.35-0.09-46-09";
 	size_t str_len = strlen(test_string);
 	u8_t term_char = device_read_parms->termChar;
 
@@ -124,6 +124,7 @@ Device_ReadResp vxi11_device_read(vxi11_instr_t* vxi11_instr, vxi11_netconn_t* v
 		rpc_copy_memory(vxi11_netbuf_reply.data, sources, sizes, sizeof(sizes)/sizeof(sizes[0]));
 
 		netconn_write(vxi11_netconn->newconn, vxi11_netbuf_reply.data, vxi11_netbuf_reply.len, NETCONN_NOFLAG);
+		HAL_Delay(2);
 
 	}
 

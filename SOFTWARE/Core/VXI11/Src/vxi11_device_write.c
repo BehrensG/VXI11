@@ -106,6 +106,7 @@ Device_WriteResp vxi11_device_write(vxi11_instr_t* vxi11_instr, vxi11_netconn_t*
 		rpc_copy_memory(vxi11_netbuf_reply.data, sources, sizes, sizeof(sizes)/sizeof(sizes[0]));
 
 		netconn_write(vxi11_netconn->newconn, vxi11_netbuf_reply.data, vxi11_netbuf_reply.len, NETCONN_NOFLAG);
+		HAL_Delay(1);
 
 	}
 

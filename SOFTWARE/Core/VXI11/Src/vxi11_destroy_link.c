@@ -54,9 +54,8 @@ Device_Error vxi11_destroy_link(vxi11_instr_t* vxi11_instr, vxi11_netconn_t* vxi
 		rpc_copy_memory(vxi11_netbuf_reply.data, sources, sizes, sizeof(sizes)/sizeof(sizes[0]));
 
 		netconn_write(vxi11_netconn->newconn, vxi11_netbuf_reply.data, vxi11_netbuf_reply.len, NETCONN_NOFLAG);
+		HAL_Delay(1);
 
-        netconn_close(vxi11_netconn->newconn);
-        netconn_delete(vxi11_netconn->newconn);
 
 	}
 
@@ -80,6 +79,8 @@ err_t vxi11_destroy_link_parser(void* data, u16_t len, Device_Link* device_link)
 Device_Error destroy_link(Device_Link* device_link)
 {
 	Device_Error device_error;
+
 	device_error.error = 0;
+
 	return device_error;
 }

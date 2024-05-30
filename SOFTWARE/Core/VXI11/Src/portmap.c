@@ -315,16 +315,16 @@ static void pmap_udp_server_task(void const *argument)
 
 	for (;;)
 	{
-		if(pdTRUE == xQueueReceive(pmap_udp_queue, &pmap_udp_state, 5U))
+		if(pdTRUE == xQueueReceive(pmap_udp_queue, &pmap_udp_state, 10000U))
 		{
 			switch(pmap_udp_state)
 			{
 				case PMAP_NEW_UDP_DATA: pmap_udp_recv(pmap_udp_netconn); break;
-				default : osDelay(pdMS_TO_TICKS(10)); break;
+				default : osDelay(pdMS_TO_TICKS(1)); break;
 			}
 
 		}
-		osDelay(pdMS_TO_TICKS(10));
+		osDelay(pdMS_TO_TICKS(1));
 	}
 }
 
@@ -335,7 +335,7 @@ static void pmap_tcp_server_task(void const *argument)
 
 	for (;;)
 	{
-		if(pdTRUE == xQueueReceive(pmap_tcp_queue, &pmap_tcp_state, 5U))
+		if(pdTRUE == xQueueReceive(pmap_tcp_queue, &pmap_tcp_state, 10000U))
 		{
 			switch(pmap_tcp_state)
 			{
@@ -349,11 +349,11 @@ static void pmap_tcp_server_task(void const *argument)
 					netconn_close(pmap_tcp_newconn);
 					netconn_delete(pmap_tcp_newconn);
 				};break;
-				 default: osDelay(pdMS_TO_TICKS(10)); break;
+				 default: osDelay(pdMS_TO_TICKS(1)); break;
 			}
 
 		}
-			osDelay(pdMS_TO_TICKS(10));
+			osDelay(pdMS_TO_TICKS(1));
 	}
 }
 
