@@ -33,7 +33,6 @@ typedef struct pmap pmap_t;
 
 #pragma pack(pop)
 
-void pmap_udp_server_start(void);
-void pmap_tcp_server_start(void);
+void pmap_server_start(void);
 
 #endif /* VXI11_INC_PORTMAP_H_ */

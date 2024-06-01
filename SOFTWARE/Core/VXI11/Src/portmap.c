@@ -35,17 +35,33 @@ xQueueHandle pmap_tcp_queue;
 
 typedef struct
 {
-  ip_addr_t* addr;
-  u16_t port;
-}portmap_conn_t;
+	struct netconn* conn;
+	struct netconn* newconn;
+}pmap_netconn_t;
 
-static portmap_conn_t pmap_udp_conn;
-static portmap_conn_t pmap_tcp_conn;
 
-static struct netconn* pmap_udp_netconn;
-static struct netconn* pmap_tcp_netconn;
-static struct netconn* pmap_tcp_newconn;
+typedef struct
+{
+	pmap_netconn_t netconn;
+	const ip_addr_t *addr;
+	u16_t port;
+}pmap_udp_t;
 
+
+typedef struct
+{
+	pmap_netconn_t netconn;
+}pmap_tcp_t;
+
+
+typedef struct
+{
+	pmap_udp_t udp;
+	pmap_tcp_t tcp;
+
+}pmap_server_t;
+
+static pmap_server_t pmap_server;
 
 typedef enum
 {
@@ -55,8 +71,8 @@ typedef enum
 
 }pmap_state_t;
 
-#define IPPROTO_TCP     6
-#define IPPROTO_UDP     17
+#define PMAP_TCP     6
+#define PMAP_UDP     17
 
 static pmap_state_t pmap_udp_state;
 static pmap_state_t pmap_tcp_state;
@@ -69,7 +85,6 @@ static void pmap_tcp_netconn_callback(struct netconn *conn, enum netconn_evt eve
 
 static err_t pmap_tcp_send(struct netconn* conn, rpc_msg_reply_t* reply, u32_t port)
 {
-	//struct netbuf *buf;
 
 	char* payload;
 
@@ -123,7 +138,7 @@ static err_t pmap_udp_send(struct netconn* conn, rpc_msg_reply_t* reply, u32_t p
 		rpc_copy_memory(payload, rpc_data, rpc_sizes, sizeof(rpc_sizes)/sizeof(rpc_sizes[0]));
 
 
-		err = netconn_connect(conn, pmap_udp_conn.addr, pmap_udp_conn.port);
+		err = netconn_connect(conn, pmap_server.udp.addr, pmap_server.udp.port);
 
 		err = netconn_send(conn, buf);
 
@@ -132,7 +147,7 @@ static err_t pmap_udp_send(struct netconn* conn, rpc_msg_reply_t* reply, u32_t p
 		err = netconn_close(conn);
 		err = netconn_delete(conn);
 
-		pmap_udp_netconn = pmap_netconn_bind(NETCONN_UDP, pmap_udp_netconn_callback, PMAPPORT);
+		pmap_server.udp.netconn.conn = pmap_netconn_bind(NETCONN_UDP, pmap_udp_netconn_callback, PMAPPORT);
 	}
 
 	return err;
@@ -165,16 +180,18 @@ static void pmap_udp_netconn_callback(struct netconn *conn, enum netconn_evt eve
 }
 
 
-err_t pmap_udp_recv(struct netconn *conn)
+static err_t pmap_udp_recv(struct netconn *conn)
 {
 	struct netbuf *buf;
 	void *data;
 	err_t err;
 	uint16_t len;
-	rpc_msg_call_t rcp_msg;
+	rpc_msg_call_t rcp_msg_call;
+
 #if LWIP_SO_RCVTIMEO == 1
-	netconn_set_recvtimeout(conn, 1000);
+	netconn_set_recvtimeout(conn, 100);
 #endif
+
 	err = netconn_recv(conn, &buf);
 
 	if (ERR_OK != err)
@@ -183,23 +200,22 @@ err_t pmap_udp_recv(struct netconn *conn)
 	}
 	else
 	{
-		pmap_udp_conn.addr = netbuf_fromaddr(buf); // get the address of the client
-		pmap_udp_conn.port = netbuf_fromport(buf); // get the Port of the client
+		pmap_server.udp.addr = netbuf_fromaddr(buf); // get the address of the client
+		pmap_server.udp.port = netbuf_fromport(buf); // get the Port of the client
 
 		netbuf_data(buf, &data, &len);
 
-		rpc_parser(data, len, NULL, &rcp_msg);
+		rpc_parser(data, len, NULL, &rcp_msg_call);
 
-		if((CALL == rcp_msg.rm_direction))
+		if((CALL == rcp_msg_call.rm_direction))
 		{
-			if( PMAPPROC_GETPORT == rcp_msg.ru.RM_cmb.cb_proc)
+			if( PMAPPROC_GETPORT == rcp_msg_call.ru.RM_cmb.cb_proc)
 			{
-				err = pmap_getport_proc(&rcp_msg, data, len, IPPROTO_UDP);
+				err = pmap_getport_proc(&rcp_msg_call, data, len, PMAP_UDP);
 			}
 		}
 
 		netbuf_delete(buf);
-
 	}
 
 	return err;
@@ -220,12 +236,13 @@ err_t pmap_tcp_recv(struct netconn *conn)
 
 	if (ERR_OK != err)
 	{
+		netconn_close(conn);
+		netconn_delete(conn);
+		conn = NULL;
 		netbuf_delete(buf);
 	}
 	else
 	{
-		pmap_tcp_conn.addr = netbuf_fromaddr(buf); // get the address of the client
-		pmap_tcp_conn.port = netbuf_fromport(buf); // get the Port of the client
 
 		netbuf_data(buf, &data, &len);
 
@@ -235,7 +252,7 @@ err_t pmap_tcp_recv(struct netconn *conn)
 		{
 			if( PMAPPROC_GETPORT == rcp_msg.ru.RM_cmb.cb_proc)
 			{
-				err = pmap_getport_proc(&rcp_msg, data, len, IPPROTO_TCP);
+				err = pmap_getport_proc(&rcp_msg, data, len, PMAP_TCP);
 			}
 		}
 
@@ -256,7 +273,7 @@ static err_t pmap_getport_proc(rpc_msg_call_t* call, void* data, uint16_t len, u
 	u32_t port = 1024;
 	rpc_msg_reply_t reply;
 
-	size_t offset = sizeof(struct call_body) + 2 * sizeof(u32_t);
+	size_t offset = sizeof(rpc_msg_call_t);
 	size_t size = 0;
 
 	if(len > offset)
@@ -275,13 +292,13 @@ static err_t pmap_getport_proc(rpc_msg_call_t* call, void* data, uint16_t len, u
 		reply = rpc_reply(call->rm_xid, MSG_ACCEPTED);
 
 
-		if(IPPROTO_UDP == protocol)
+		if(PMAP_UDP == protocol)
 		{
-			err = pmap_udp_send(pmap_udp_netconn, &reply, port);
+			err = pmap_udp_send(pmap_server.udp.netconn.conn, &reply, port);
 		}
-		else if(IPPROTO_TCP == protocol)
+		else if(PMAP_TCP == protocol)
 		{
-			err = pmap_tcp_send(pmap_tcp_newconn, &reply, port);
+			err = pmap_tcp_send(pmap_server.tcp.netconn.newconn, &reply, port);
 		}
 
 	}
@@ -289,7 +306,7 @@ static err_t pmap_getport_proc(rpc_msg_call_t* call, void* data, uint16_t len, u
 }
 
 
-static struct netconn*  pmap_netconn_bind( enum netconn_type type, netconn_callback callback, u16_t port)
+static struct netconn* pmap_netconn_bind( enum netconn_type type, netconn_callback callback, u16_t port)
 {
 	err_t err;
 	struct netconn* conn;
@@ -301,7 +318,7 @@ static struct netconn*  pmap_netconn_bind( enum netconn_type type, netconn_callb
 	{
 		netconn_listen(conn);
 	#if LWIP_SO_RCVTIMEO == 1
-		netconn_set_recvtimeout(conn, 20000);
+		netconn_set_recvtimeout(conn, 30000);
 	#endif
 	}
 
@@ -311,68 +328,62 @@ static struct netconn*  pmap_netconn_bind( enum netconn_type type, netconn_callb
 
 static void pmap_udp_server_task(void const *argument)
 {
-	pmap_udp_netconn = pmap_netconn_bind(NETCONN_UDP, pmap_udp_netconn_callback, PMAPPORT);
+	pmap_server.udp.netconn.conn = pmap_netconn_bind(NETCONN_UDP, pmap_udp_netconn_callback, PMAPPORT);
 
 	for (;;)
 	{
-		if(pdTRUE == xQueueReceive(pmap_udp_queue, &pmap_udp_state, 10000U))
+		if(pdTRUE == xQueueReceive(pmap_udp_queue, &pmap_udp_state, portMAX_DELAY))
 		{
 			switch(pmap_udp_state)
 			{
-				case PMAP_NEW_UDP_DATA: pmap_udp_recv(pmap_udp_netconn); break;
-				default : osDelay(pdMS_TO_TICKS(1)); break;
+				case PMAP_NEW_UDP_DATA: pmap_udp_recv(pmap_server.udp.netconn.conn); break;
+				default : osDelay(pdMS_TO_TICKS(5)); break;
 			}
 
 		}
-		osDelay(pdMS_TO_TICKS(1));
 	}
 }
 
 
 static void pmap_tcp_server_task(void const *argument)
 {
-	pmap_tcp_netconn = pmap_netconn_bind(NETCONN_TCP, pmap_tcp_netconn_callback, PMAPPORT);
+	err_t err;
+	pmap_server.tcp.netconn.conn = pmap_netconn_bind(NETCONN_TCP, pmap_tcp_netconn_callback, PMAPPORT);
 
 	for (;;)
 	{
-		if(pdTRUE == xQueueReceive(pmap_tcp_queue, &pmap_tcp_state, 10000U))
+		if(pdTRUE == xQueueReceive(pmap_tcp_queue, &pmap_tcp_state, portMAX_DELAY))
 		{
 			switch(pmap_tcp_state)
 			{
 				case PMAP_NEW_TCP_DATA:
 				{
-					netconn_accept(pmap_tcp_netconn, &pmap_tcp_newconn);
-					pmap_tcp_recv(pmap_tcp_newconn);
+					if(NULL == pmap_server.tcp.netconn.newconn)
+					{
+						err = netconn_accept(pmap_server.tcp.netconn.conn, &pmap_server.tcp.netconn.newconn);
+					}
+					pmap_tcp_recv(pmap_server.tcp.netconn.newconn);
 				};break;
-				case PMAP_CLOSE_TCP :
-				{
-					netconn_close(pmap_tcp_newconn);
-					netconn_delete(pmap_tcp_newconn);
-				};break;
-				 default: osDelay(pdMS_TO_TICKS(1)); break;
+				 default: osDelay(pdMS_TO_TICKS(5)); break;
 			}
 
 		}
-			osDelay(pdMS_TO_TICKS(1));
 	}
 }
 
-void pmap_udp_server_start(void)
+void pmap_server_start(void)
 {
 
 	pmap_udp_task_handler = xTaskCreateStatic(pmap_udp_server_task,"pmap_udp_task",
-			DEFAULT_THREAD_STACKSIZE/2, (void*)1, tskIDLE_PRIORITY,
+			DEFAULT_THREAD_STACKSIZE/2, (void*)1, tskIDLE_PRIORITY + 1,
 			pmap_udp_task_buffer, &pmap_udp_task_control_block);
 
 	pmap_udp_queue = xQueueCreate(1, sizeof(pmap_state_t));
-}
-
-void pmap_tcp_server_start(void)
-{
 
 	pmap_tcp_task_handler = xTaskCreateStatic(pmap_tcp_server_task,"pmap_tcp_task",
-			DEFAULT_THREAD_STACKSIZE/2, (void*)1, tskIDLE_PRIORITY,
+			DEFAULT_THREAD_STACKSIZE/2, (void*)1, tskIDLE_PRIORITY + 1,
 			pmap_tcp_task_buffer, &pmap_tcp_task_control_block);
 
 	pmap_tcp_queue = xQueueCreate(1, sizeof(pmap_state_t));
+
 }

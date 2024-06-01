@@ -200,7 +200,7 @@ static void vxi11_core_task(void const *argument)
 
 	for (;;)
 	{
-		if(pdTRUE == xQueueReceive(vxi11_tcp_queue, &test, 100000))
+		if(pdTRUE == xQueueReceive(vxi11_tcp_queue, &test, portMAX_DELAY))
 		{
 			if(NULL == vxi11_instr.core.netconn.newconn)
 			{
@@ -241,7 +241,7 @@ void vxi11_server_start(void)
 	vxi11_init(&vxi11_instr);
 
 	vxi11_core_handler = xTaskCreateStatic(vxi11_core_task,"vxi11_core_task",
-			DEFAULT_THREAD_STACKSIZE, (void*)1, tskIDLE_PRIORITY + 1,
+			DEFAULT_THREAD_STACKSIZE, (void*)1, tskIDLE_PRIORITY + 2,
 			vxi11_core_buffer, &vxi11_core_control_block);
 /*
 	vxi11_abort_handler = xTaskCreateStatic(vxi11_abort_task,"vxi11_abort_task",

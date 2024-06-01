@@ -314,9 +314,8 @@ void StartDefaultTask(void const * argument)
   /* USER CODE BEGIN 5 */
   osDelay(pdMS_TO_TICKS(300));
 
-  pmap_udp_server_start();
-  pmap_tcp_server_start();
-  vxi11_server_start();
+  pmap_server_start();
+//  vxi11_server_start();
 
   /* Infinite loop */
   for(;;)
