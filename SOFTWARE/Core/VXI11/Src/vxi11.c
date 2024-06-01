@@ -156,12 +156,12 @@ static vx11_procedure_t vxi11_core_recv(vxi11_instr_t* vxi11_instr)
 
 static void vxi11_core_callback(struct netconn *conn, enum netconn_evt even, u16_t len)
 {
-	static netconn_evt vxi11_evt;
+
 
 	if(NETCONN_EVT_RCVPLUS == even)
 	{
 
-		vxi11_evt = even;
+		static u32_t test = 1;
 		xQueueSend(vxi11_tcp_queue, &test, 1000);
 
 	}
