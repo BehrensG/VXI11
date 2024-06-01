@@ -93,17 +93,14 @@ Device_ReadResp vxi11_device_read(vxi11_instr_t* vxi11_instr)
 	rpc_msg_call_t rpc_msg_call;
 	rpc_header_t rpc_header;
 
-	Device_ReadParms device_read_parms;
+	//Device_ReadParms device_read_parms;
 
 
 	rpc_tcp_call_parser(vxi11_instr->core.netbuf.data, vxi11_instr->core.netbuf.len, &rpc_msg_call, &rpc_header);
 
-	if(ERR_OK == vxi11_device_read_parser(vxi11_instr->core.netbuf.data, vxi11_instr->core.netbuf.len, &device_read_parms))
+	if(ERR_OK == vxi11_device_read_parser(vxi11_instr->core.netbuf.data, vxi11_instr->core.netbuf.len, &vxi11_instr->core.device_read_parms))
 	{
-		vxi11_instr->core.device_read_resp = device_read(&device_read_parms);
-
-		memcpy(&vxi11_instr->core.device_read_parms, &device_read_parms, sizeof(Device_ReadParms));
-		memcpy(&vxi11_instr->core.device_read_resp, &vxi11_instr->core.device_read_resp, sizeof(Device_ReadResp));
+		vxi11_instr->core.device_read_resp = device_read(&vxi11_instr->core.device_read_parms);
 
 
 		rpc_msg_reply_t rpc_msg_reply = rpc_reply(rpc_msg_call.rm_xid, MSG_ACCEPTED);
