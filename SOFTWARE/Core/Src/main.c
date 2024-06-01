@@ -312,10 +312,11 @@ void StartDefaultTask(void const * argument)
   /* init code for LWIP */
   MX_LWIP_Init();
   /* USER CODE BEGIN 5 */
-  osDelay(pdMS_TO_TICKS(300));
+  osDelay(pdMS_TO_TICKS(100));
 
+  vxi11_server_start();
   pmap_server_start();
-//  vxi11_server_start();
+
 
   /* Infinite loop */
   for(;;)

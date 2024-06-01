@@ -174,7 +174,7 @@ static void pmap_udp_netconn_callback(struct netconn *conn, enum netconn_evt eve
 	if(NETCONN_EVT_RCVPLUS == even)
 	{
 		pmap_udp_state = PMAP_NEW_UDP_DATA;
-		xQueueSend(pmap_udp_queue, &pmap_udp_state, 1000);
+		xQueueSend(pmap_udp_queue, &pmap_udp_state, 10);
 	}
 
 }
@@ -189,7 +189,7 @@ static err_t pmap_udp_recv(struct netconn *conn)
 	rpc_msg_call_t rcp_msg_call;
 
 #if LWIP_SO_RCVTIMEO == 1
-	netconn_set_recvtimeout(conn, 100);
+	netconn_set_recvtimeout(conn, 10);
 #endif
 
 	err = netconn_recv(conn, &buf);
@@ -314,12 +314,14 @@ static struct netconn* pmap_netconn_bind( enum netconn_type type, netconn_callba
 	conn = netconn_new_with_callback(type, callback);
 	err = netconn_bind(conn, IP_ADDR_ANY, port);
 
+#if LWIP_SO_RCVTIMEO == 1
+	netconn_set_recvtimeout(conn, 1000);
+#endif
+
 	if( NETCONN_TCP == type)
 	{
 		netconn_listen(conn);
-	#if LWIP_SO_RCVTIMEO == 1
-		netconn_set_recvtimeout(conn, 30000);
-	#endif
+
 	}
 
 	return conn;

@@ -47,9 +47,7 @@ typedef enum
 
 vxi11_instr_t vxi11_instr;
 
-static vxi11_state_t vxi11_state = VXI11_IDLE;
 static struct netconn*  vxi11_bind(u16_t port);
-static vxi11_state_t vx11_queue();
 
 xQueueHandle vxi11_tcp_queue;
 
@@ -112,7 +110,7 @@ static vx11_procedure_t vxi11_core_recv(vxi11_instr_t* vxi11_instr)
 	vxi11_instr->core.netbuf.len = 0;
 
 #if LWIP_SO_RCVTIMEO == 1
-	netconn_set_recvtimeout(vxi11_instr->core.netconn.newconn, 1000000);
+	netconn_set_recvtimeout(vxi11_instr->core.netconn.newconn, 10000);
 #endif
 
 	err = netconn_recv(vxi11_instr->core.netconn.newconn, &buf);
@@ -162,11 +160,10 @@ static void vxi11_core_callback(struct netconn *conn, enum netconn_evt even, u16
 	{
 
 		static u32_t test = 1;
-		xQueueSend(vxi11_tcp_queue, &test, 1000);
+		xQueueSend(vxi11_tcp_queue, &test, portMAX_DELAY);
 
 	}
 }
-
 
 static struct netconn*  vxi11_bind(u16_t port)
 {
@@ -177,9 +174,11 @@ static struct netconn*  vxi11_bind(u16_t port)
 	conn = netconn_new_with_callback(NETCONN_TCP, vxi11_core_callback);
 	err = netconn_bind(conn, IP_ADDR_ANY, port);
 	err = netconn_listen(conn);
+
 #if LWIP_SO_RCVTIMEO == 1
 	netconn_set_recvtimeout(conn, 1000);
 #endif
+
 	return conn;
 }
 
@@ -205,7 +204,12 @@ static void vxi11_core_task(void const *argument)
 			if(NULL == vxi11_instr.core.netconn.newconn)
 			{
 				if(ERR_OK == netconn_accept(vxi11_instr.core.netconn.conn, &newconn))
+				{
 					vxi11_instr.core.netconn.newconn = newconn;
+#if LWIP_SO_RCVTIMEO == 1
+	netconn_set_recvtimeout(vxi11_instr.core.netconn.newconn, 100);
+#endif
+				}
 			}
 			else
 			{
@@ -241,7 +245,7 @@ void vxi11_server_start(void)
 	vxi11_init(&vxi11_instr);
 
 	vxi11_core_handler = xTaskCreateStatic(vxi11_core_task,"vxi11_core_task",
-			DEFAULT_THREAD_STACKSIZE, (void*)1, tskIDLE_PRIORITY + 2,
+			DEFAULT_THREAD_STACKSIZE, (void*)1, tskIDLE_PRIORITY + 3,
 			vxi11_core_buffer, &vxi11_core_control_block);
 /*
 	vxi11_abort_handler = xTaskCreateStatic(vxi11_abort_task,"vxi11_abort_task",
