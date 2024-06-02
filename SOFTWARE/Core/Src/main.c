@@ -157,58 +157,59 @@ int main(void)
   */
 void SystemClock_Config(void)
 {
-  RCC_OscInitTypeDef RCC_OscInitStruct = {0};
-  RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
-
-  /** Supply configuration update enable
-  */
-  HAL_PWREx_ConfigSupply(PWR_LDO_SUPPLY);
-
-  /** Configure the main internal regulator output voltage
-  */
-  __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE1);
-
-  while(!__HAL_PWR_GET_FLAG(PWR_FLAG_VOSRDY)) {}
-
-  __HAL_RCC_SYSCFG_CLK_ENABLE();
-  __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE0);
-
-  while(!__HAL_PWR_GET_FLAG(PWR_FLAG_VOSRDY)) {}
-
-  /** Initializes the RCC Oscillators according to the specified parameters
-  * in the RCC_OscInitTypeDef structure.
-  */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
-  RCC_OscInitStruct.HSEState = RCC_HSE_BYPASS;
-  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
-  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
-  RCC_OscInitStruct.PLL.PLLM = 1;
-  RCC_OscInitStruct.PLL.PLLN = 120;
-  RCC_OscInitStruct.PLL.PLLP = 2;
-  RCC_OscInitStruct.PLL.PLLQ = 4;
-  RCC_OscInitStruct.PLL.PLLR = 2;
-  RCC_OscInitStruct.PLL.PLLRGE = RCC_PLL1VCIRANGE_3;
-  RCC_OscInitStruct.PLL.PLLVCOSEL = RCC_PLL1VCOWIDE;
-  RCC_OscInitStruct.PLL.PLLFRACN = 0;
-  if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
+  LL_FLASH_SetLatency(LL_FLASH_LATENCY_4);
+  while(LL_FLASH_GetLatency()!= LL_FLASH_LATENCY_4)
   {
-    Error_Handler();
+  }
+  LL_PWR_ConfigSupply(LL_PWR_LDO_SUPPLY);
+  LL_PWR_SetRegulVoltageScaling(LL_PWR_REGU_VOLTAGE_SCALE0);
+  while (LL_PWR_IsActiveFlag_VOS() == 0)
+  {
+  }
+  LL_RCC_HSE_EnableBypass();
+  LL_RCC_HSE_Enable();
+
+   /* Wait till HSE is ready */
+  while(LL_RCC_HSE_IsReady() != 1)
+  {
+
+  }
+  LL_RCC_PLL_SetSource(LL_RCC_PLLSOURCE_HSE);
+  LL_RCC_PLL1P_Enable();
+  LL_RCC_PLL1_SetVCOInputRange(LL_RCC_PLLINPUTRANGE_8_16);
+  LL_RCC_PLL1_SetVCOOutputRange(LL_RCC_PLLVCORANGE_WIDE);
+  LL_RCC_PLL1_SetM(1);
+  LL_RCC_PLL1_SetN(120);
+  LL_RCC_PLL1_SetP(2);
+  LL_RCC_PLL1_SetQ(4);
+  LL_RCC_PLL1_SetR(2);
+  LL_RCC_PLL1_Enable();
+
+   /* Wait till PLL is ready */
+  while(LL_RCC_PLL1_IsReady() != 1)
+  {
   }
 
-  /** Initializes the CPU, AHB and APB buses clocks
-  */
-  RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
-                              |RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2
-                              |RCC_CLOCKTYPE_D3PCLK1|RCC_CLOCKTYPE_D1PCLK1;
-  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
-  RCC_ClkInitStruct.SYSCLKDivider = RCC_SYSCLK_DIV1;
-  RCC_ClkInitStruct.AHBCLKDivider = RCC_HCLK_DIV2;
-  RCC_ClkInitStruct.APB3CLKDivider = RCC_APB3_DIV2;
-  RCC_ClkInitStruct.APB1CLKDivider = RCC_APB1_DIV2;
-  RCC_ClkInitStruct.APB2CLKDivider = RCC_APB2_DIV2;
-  RCC_ClkInitStruct.APB4CLKDivider = RCC_APB4_DIV2;
+   /* Intermediate AHB prescaler 2 when target frequency clock is higher than 80 MHz */
+   LL_RCC_SetAHBPrescaler(LL_RCC_AHB_DIV_2);
 
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_4) != HAL_OK)
+  LL_RCC_SetSysClkSource(LL_RCC_SYS_CLKSOURCE_PLL1);
+
+   /* Wait till System clock is ready */
+  while(LL_RCC_GetSysClkSource() != LL_RCC_SYS_CLKSOURCE_STATUS_PLL1)
+  {
+
+  }
+  LL_RCC_SetSysPrescaler(LL_RCC_SYSCLK_DIV_1);
+  LL_RCC_SetAHBPrescaler(LL_RCC_AHB_DIV_2);
+  LL_RCC_SetAPB1Prescaler(LL_RCC_APB1_DIV_2);
+  LL_RCC_SetAPB2Prescaler(LL_RCC_APB2_DIV_2);
+  LL_RCC_SetAPB3Prescaler(LL_RCC_APB3_DIV_2);
+  LL_RCC_SetAPB4Prescaler(LL_RCC_APB4_DIV_2);
+  LL_SetSystemCoreClock(480000000);
+
+   /* Update the time base */
+  if (HAL_InitTick (TICK_INT_PRIORITY) != HAL_OK)
   {
     Error_Handler();
   }
@@ -221,76 +222,94 @@ void SystemClock_Config(void)
   */
 static void MX_GPIO_Init(void)
 {
-  GPIO_InitTypeDef GPIO_InitStruct = {0};
+  LL_EXTI_InitTypeDef EXTI_InitStruct = {0};
+  LL_GPIO_InitTypeDef GPIO_InitStruct = {0};
 /* USER CODE BEGIN MX_GPIO_Init_1 */
 /* USER CODE END MX_GPIO_Init_1 */
 
   /* GPIO Ports Clock Enable */
-  __HAL_RCC_GPIOC_CLK_ENABLE();
-  __HAL_RCC_GPIOH_CLK_ENABLE();
-  __HAL_RCC_GPIOA_CLK_ENABLE();
-  __HAL_RCC_GPIOB_CLK_ENABLE();
-  __HAL_RCC_GPIOD_CLK_ENABLE();
-  __HAL_RCC_GPIOG_CLK_ENABLE();
-  __HAL_RCC_GPIOE_CLK_ENABLE();
+  LL_AHB4_GRP1_EnableClock(LL_AHB4_GRP1_PERIPH_GPIOC);
+  LL_AHB4_GRP1_EnableClock(LL_AHB4_GRP1_PERIPH_GPIOH);
+  LL_AHB4_GRP1_EnableClock(LL_AHB4_GRP1_PERIPH_GPIOA);
+  LL_AHB4_GRP1_EnableClock(LL_AHB4_GRP1_PERIPH_GPIOB);
+  LL_AHB4_GRP1_EnableClock(LL_AHB4_GRP1_PERIPH_GPIOD);
+  LL_AHB4_GRP1_EnableClock(LL_AHB4_GRP1_PERIPH_GPIOG);
+  LL_AHB4_GRP1_EnableClock(LL_AHB4_GRP1_PERIPH_GPIOE);
 
-  /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOB, LD1_Pin|LD3_Pin, GPIO_PIN_RESET);
+  /**/
+  LL_GPIO_ResetOutputPin(GPIOB, LD1_Pin|LD3_Pin);
 
-  /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(USB_OTG_FS_PWR_EN_GPIO_Port, USB_OTG_FS_PWR_EN_Pin, GPIO_PIN_RESET);
+  /**/
+  LL_GPIO_ResetOutputPin(USB_OTG_FS_PWR_EN_GPIO_Port, USB_OTG_FS_PWR_EN_Pin);
 
-  /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
+  /**/
+  LL_GPIO_ResetOutputPin(LD2_GPIO_Port, LD2_Pin);
 
-  /*Configure GPIO pin : B1_Pin */
+  /**/
   GPIO_InitStruct.Pin = B1_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(B1_GPIO_Port, &GPIO_InitStruct);
+  GPIO_InitStruct.Mode = LL_GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = LL_GPIO_PULL_NO;
+  LL_GPIO_Init(B1_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : LD1_Pin LD3_Pin */
+  /**/
   GPIO_InitStruct.Pin = LD1_Pin|LD3_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+  GPIO_InitStruct.Mode = LL_GPIO_MODE_OUTPUT;
+  GPIO_InitStruct.Speed = LL_GPIO_SPEED_FREQ_LOW;
+  GPIO_InitStruct.OutputType = LL_GPIO_OUTPUT_PUSHPULL;
+  GPIO_InitStruct.Pull = LL_GPIO_PULL_NO;
+  LL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : STLINK_RX_Pin STLINK_TX_Pin */
+  /**/
   GPIO_InitStruct.Pin = STLINK_RX_Pin|STLINK_TX_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  GPIO_InitStruct.Alternate = GPIO_AF7_USART3;
-  HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
+  GPIO_InitStruct.Mode = LL_GPIO_MODE_ALTERNATE;
+  GPIO_InitStruct.Speed = LL_GPIO_SPEED_FREQ_LOW;
+  GPIO_InitStruct.OutputType = LL_GPIO_OUTPUT_PUSHPULL;
+  GPIO_InitStruct.Pull = LL_GPIO_PULL_NO;
+  GPIO_InitStruct.Alternate = LL_GPIO_AF_7;
+  LL_GPIO_Init(GPIOD, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : USB_OTG_FS_PWR_EN_Pin */
+  /**/
   GPIO_InitStruct.Pin = USB_OTG_FS_PWR_EN_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(USB_OTG_FS_PWR_EN_GPIO_Port, &GPIO_InitStruct);
+  GPIO_InitStruct.Mode = LL_GPIO_MODE_OUTPUT;
+  GPIO_InitStruct.Speed = LL_GPIO_SPEED_FREQ_LOW;
+  GPIO_InitStruct.OutputType = LL_GPIO_OUTPUT_PUSHPULL;
+  GPIO_InitStruct.Pull = LL_GPIO_PULL_NO;
+  LL_GPIO_Init(USB_OTG_FS_PWR_EN_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : USB_OTG_FS_OVCR_Pin */
-  GPIO_InitStruct.Pin = USB_OTG_FS_OVCR_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(USB_OTG_FS_OVCR_GPIO_Port, &GPIO_InitStruct);
+  /**/
+  GPIO_InitStruct.Pin = LL_GPIO_PIN_8|LL_GPIO_PIN_11|LL_GPIO_PIN_12;
+  GPIO_InitStruct.Mode = LL_GPIO_MODE_ALTERNATE;
+  GPIO_InitStruct.Speed = LL_GPIO_SPEED_FREQ_LOW;
+  GPIO_InitStruct.OutputType = LL_GPIO_OUTPUT_PUSHPULL;
+  GPIO_InitStruct.Pull = LL_GPIO_PULL_NO;
+  GPIO_InitStruct.Alternate = LL_GPIO_AF_10;
+  LL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : PA8 PA11 PA12 */
-  GPIO_InitStruct.Pin = GPIO_PIN_8|GPIO_PIN_11|GPIO_PIN_12;
-  GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  GPIO_InitStruct.Alternate = GPIO_AF10_OTG1_FS;
-  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
-
-  /*Configure GPIO pin : LD2_Pin */
+  /**/
   GPIO_InitStruct.Pin = LD2_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(LD2_GPIO_Port, &GPIO_InitStruct);
+  GPIO_InitStruct.Mode = LL_GPIO_MODE_OUTPUT;
+  GPIO_InitStruct.Speed = LL_GPIO_SPEED_FREQ_LOW;
+  GPIO_InitStruct.OutputType = LL_GPIO_OUTPUT_PUSHPULL;
+  GPIO_InitStruct.Pull = LL_GPIO_PULL_NO;
+  LL_GPIO_Init(LD2_GPIO_Port, &GPIO_InitStruct);
+
+  /**/
+  LL_SYSCFG_SetEXTISource(LL_SYSCFG_EXTI_PORTG, LL_SYSCFG_EXTI_LINE7);
+
+  /**/
+  EXTI_InitStruct.Line_0_31 = LL_EXTI_LINE_7;
+  EXTI_InitStruct.Line_32_63 = LL_EXTI_LINE_NONE;
+  EXTI_InitStruct.Line_64_95 = LL_EXTI_LINE_NONE;
+  EXTI_InitStruct.LineCommand = ENABLE;
+  EXTI_InitStruct.Mode = LL_EXTI_MODE_IT;
+  EXTI_InitStruct.Trigger = LL_EXTI_TRIGGER_RISING;
+  LL_EXTI_Init(&EXTI_InitStruct);
+
+  /**/
+  LL_GPIO_SetPinPull(USB_OTG_FS_OVCR_GPIO_Port, USB_OTG_FS_OVCR_Pin, LL_GPIO_PULL_NO);
+
+  /**/
+  LL_GPIO_SetPinMode(USB_OTG_FS_OVCR_GPIO_Port, USB_OTG_FS_OVCR_Pin, LL_GPIO_MODE_INPUT);
 
 /* USER CODE BEGIN MX_GPIO_Init_2 */
 /* USER CODE END MX_GPIO_Init_2 */
@@ -331,51 +350,23 @@ void StartDefaultTask(void const * argument)
 
 void MPU_Config(void)
 {
-  MPU_Region_InitTypeDef MPU_InitStruct = {0};
 
   /* Disables the MPU */
-  HAL_MPU_Disable();
+  LL_MPU_Disable();
 
   /** Initializes and configures the Region and the memory to be protected
   */
-  MPU_InitStruct.Enable = MPU_REGION_ENABLE;
-  MPU_InitStruct.Number = MPU_REGION_NUMBER0;
-  MPU_InitStruct.BaseAddress = 0x0;
-  MPU_InitStruct.Size = MPU_REGION_SIZE_4GB;
-  MPU_InitStruct.SubRegionDisable = 0x87;
-  MPU_InitStruct.TypeExtField = MPU_TEX_LEVEL0;
-  MPU_InitStruct.AccessPermission = MPU_REGION_NO_ACCESS;
-  MPU_InitStruct.DisableExec = MPU_INSTRUCTION_ACCESS_DISABLE;
-  MPU_InitStruct.IsShareable = MPU_ACCESS_SHAREABLE;
-  MPU_InitStruct.IsCacheable = MPU_ACCESS_NOT_CACHEABLE;
-  MPU_InitStruct.IsBufferable = MPU_ACCESS_NOT_BUFFERABLE;
-
-  HAL_MPU_ConfigRegion(&MPU_InitStruct);
+  LL_MPU_ConfigRegion(LL_MPU_REGION_NUMBER0, 0x87, 0x0, LL_MPU_REGION_SIZE_4GB|LL_MPU_TEX_LEVEL0|LL_MPU_REGION_NO_ACCESS|LL_MPU_INSTRUCTION_ACCESS_DISABLE|LL_MPU_ACCESS_SHAREABLE|LL_MPU_ACCESS_NOT_CACHEABLE|LL_MPU_ACCESS_NOT_BUFFERABLE);
 
   /** Initializes and configures the Region and the memory to be protected
   */
-  MPU_InitStruct.Number = MPU_REGION_NUMBER1;
-  MPU_InitStruct.BaseAddress = 0x30020000;
-  MPU_InitStruct.Size = MPU_REGION_SIZE_128KB;
-  MPU_InitStruct.SubRegionDisable = 0x0;
-  MPU_InitStruct.TypeExtField = MPU_TEX_LEVEL1;
-  MPU_InitStruct.AccessPermission = MPU_REGION_FULL_ACCESS;
-  MPU_InitStruct.IsShareable = MPU_ACCESS_NOT_SHAREABLE;
-
-  HAL_MPU_ConfigRegion(&MPU_InitStruct);
+  LL_MPU_ConfigRegion(LL_MPU_REGION_NUMBER1, 0x0, 0x30020000, LL_MPU_REGION_SIZE_128KB|LL_MPU_TEX_LEVEL1|LL_MPU_REGION_FULL_ACCESS|LL_MPU_INSTRUCTION_ACCESS_DISABLE|LL_MPU_ACCESS_NOT_SHAREABLE|LL_MPU_ACCESS_NOT_CACHEABLE|LL_MPU_ACCESS_NOT_BUFFERABLE);
 
   /** Initializes and configures the Region and the memory to be protected
   */
-  MPU_InitStruct.Number = MPU_REGION_NUMBER2;
-  MPU_InitStruct.BaseAddress = 0x30040000;
-  MPU_InitStruct.Size = MPU_REGION_SIZE_512B;
-  MPU_InitStruct.TypeExtField = MPU_TEX_LEVEL0;
-  MPU_InitStruct.IsShareable = MPU_ACCESS_SHAREABLE;
-  MPU_InitStruct.IsBufferable = MPU_ACCESS_BUFFERABLE;
-
-  HAL_MPU_ConfigRegion(&MPU_InitStruct);
+  LL_MPU_ConfigRegion(LL_MPU_REGION_NUMBER2, 0x0, 0x30040000, LL_MPU_REGION_SIZE_512B|LL_MPU_TEX_LEVEL0|LL_MPU_REGION_FULL_ACCESS|LL_MPU_INSTRUCTION_ACCESS_DISABLE|LL_MPU_ACCESS_SHAREABLE|LL_MPU_ACCESS_NOT_CACHEABLE|LL_MPU_ACCESS_BUFFERABLE);
   /* Enables the MPU */
-  HAL_MPU_Enable(MPU_PRIVILEGED_DEFAULT);
+  LL_MPU_Enable(LL_MPU_CTRL_PRIVILEGED_DEFAULT);
 
 }
 

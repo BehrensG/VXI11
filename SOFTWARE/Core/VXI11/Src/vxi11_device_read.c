@@ -115,12 +115,11 @@ Device_ReadResp vxi11_device_read(vxi11_instr_t* vxi11_instr)
 
 		rpc_header.data = htonl(rpc_header.data);
 
-
 		rpc_copy_memory(vxi11_instr->core.netbuf.data, sources, sizes, sizeof(sizes)/sizeof(sizes[0]));
 
-		netconn_write(vxi11_instr->core.netconn.newconn, vxi11_instr->core.netbuf.data, vxi11_instr->core.netbuf.len, NETCONN_NOFLAG);
+		vTaskDelay(pdMS_TO_TICKS(1));
 
-		vTaskDelay(pdMS_TO_TICKS(10));
+		netconn_write(vxi11_instr->core.netconn.newconn, vxi11_instr->core.netbuf.data, vxi11_instr->core.netbuf.len, NETCONN_NOFLAG);
 
 	}
 
