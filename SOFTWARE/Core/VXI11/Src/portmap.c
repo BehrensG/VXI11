@@ -157,24 +157,25 @@ static err_t pmap_udp_send(struct netconn* conn, rpc_msg_reply_t* reply, u32_t p
 
 static void pmap_tcp_netconn_callback(struct netconn *conn, enum netconn_evt even, u16_t len)
 {
-	err_t err;
+	BaseType_t xHigherPriorityTaskWoken = pdFALSE;
 
 	if(NETCONN_EVT_RCVPLUS == even)
 	{
 
 		pmap_tcp_state = PMAP_NEW_TCP_DATA;
-		xQueueSend(pmap_tcp_queue, &pmap_tcp_state, 1000);
+		xQueueSendFromISR(pmap_tcp_queue, &pmap_tcp_state, &xHigherPriorityTaskWoken);
 
 	}
 }
 
 static void pmap_udp_netconn_callback(struct netconn *conn, enum netconn_evt even, u16_t len)
 {
+	BaseType_t xHigherPriorityTaskWoken = pdFALSE;
 
 	if(NETCONN_EVT_RCVPLUS == even)
 	{
 		pmap_udp_state = PMAP_NEW_UDP_DATA;
-		xQueueSend(pmap_udp_queue, &pmap_udp_state, 10);
+		xQueueSendFromISR(pmap_udp_queue, &pmap_udp_state, &xHigherPriorityTaskWoken);
 	}
 
 }

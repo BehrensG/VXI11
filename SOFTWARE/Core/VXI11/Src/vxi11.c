@@ -154,13 +154,13 @@ static vx11_procedure_t vxi11_core_recv(vxi11_instr_t* vxi11_instr)
 
 static void vxi11_core_callback(struct netconn *conn, enum netconn_evt even, u16_t len)
 {
-
+	BaseType_t xHigherPriorityTaskWoken = pdFALSE;
 
 	if(NETCONN_EVT_RCVPLUS == even)
 	{
 
 		static u32_t test = 1;
-		xQueueSend(vxi11_tcp_queue, &test, portMAX_DELAY);
+		xQueueSendFromISR(vxi11_tcp_queue, &test, &xHigherPriorityTaskWoken);
 
 	}
 }
