@@ -93,7 +93,7 @@ static void vxi11_core_recv_close(vxi11_instr_t* vxi11_instr)
 	{
 		netconn_close(vxi11_instr->core.netconn.newconn);
 		netconn_delete(vxi11_instr->core.netconn.newconn);
-		vxi11_instr->core.netconn.newconn = NULL;
+		vxi11_instr->core.connected = 0;
 	}
 }
 
@@ -185,6 +185,8 @@ static struct netconn*  vxi11_bind(u16_t port)
 static void vxi11_init(vxi11_instr_t* vxi11_instr)
 {
 	vxi11_instr->state = VXI11_IDLE;
+	vxi11_instr->core.connected = 0;
+
 
 
 }
@@ -201,14 +203,16 @@ static void vxi11_core_task(void const *argument)
 	{
 		if(pdTRUE == xQueueReceive(vxi11_tcp_queue, &test, portMAX_DELAY))
 		{
-			if(NULL == vxi11_instr.core.netconn.newconn)
+			if(!vxi11_instr.core.connected)
 			{
 				if(ERR_OK == netconn_accept(vxi11_instr.core.netconn.conn, &newconn))
 				{
 					vxi11_instr.core.netconn.newconn = newconn;
-#if LWIP_SO_RCVTIMEO == 1
-	netconn_set_recvtimeout(vxi11_instr.core.netconn.newconn, 100);
-#endif
+					vxi11_instr.core.connected = 1;
+
+					#if LWIP_SO_RCVTIMEO == 1
+						netconn_set_recvtimeout(vxi11_instr.core.netconn.newconn, 100);
+					#endif
 				}
 			}
 			else
@@ -223,8 +227,6 @@ static void vxi11_core_task(void const *argument)
 				}
 			}
 		}
-
-
 	}
 }
 

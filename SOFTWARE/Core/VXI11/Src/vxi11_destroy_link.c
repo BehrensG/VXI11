@@ -53,11 +53,8 @@ Device_Error vxi11_destroy_link(vxi11_instr_t* vxi11_instr)
 		rpc_copy_memory(vxi11_instr->core.netbuf.data, sources, sizes, sizeof(sizes)/sizeof(sizes[0]));
 
 		netconn_write(vxi11_instr->core.netconn.newconn, vxi11_instr->core.netbuf.data, vxi11_instr->core.netbuf.len, NETCONN_NOFLAG);
-		HAL_Delay(1);
-		netconn_shutdown(vxi11_instr->core.netconn.newconn, 1,1);
-		netconn_close(vxi11_instr->core.netconn.newconn);
 
-		netconn_delete(vxi11_instr->core.netconn.newconn);
+		vTaskDelay(pdMS_TO_TICKS(10));
 
 	}
 

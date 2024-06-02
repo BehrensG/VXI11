@@ -61,6 +61,7 @@ typedef struct {
 	Device_ReadParms device_read_parms;
 	vxi11_netconn_t netconn;
 	vxi11_netbuf_t netbuf;
+	u8_t connected;
 }vxi11_core_t;
 
 typedef struct {

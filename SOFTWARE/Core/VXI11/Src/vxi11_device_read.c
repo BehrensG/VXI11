@@ -119,7 +119,8 @@ Device_ReadResp vxi11_device_read(vxi11_instr_t* vxi11_instr)
 		rpc_copy_memory(vxi11_instr->core.netbuf.data, sources, sizes, sizeof(sizes)/sizeof(sizes[0]));
 
 		netconn_write(vxi11_instr->core.netconn.newconn, vxi11_instr->core.netbuf.data, vxi11_instr->core.netbuf.len, NETCONN_NOFLAG);
-		HAL_Delay(1);
+
+		vTaskDelay(pdMS_TO_TICKS(10));
 
 	}
 

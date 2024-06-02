@@ -28,8 +28,8 @@ static err_t vxi11_create_link_parser(void* data, u16_t len, Create_LinkParms* c
 Create_LinkResp vxi11_create_link(vxi11_instr_t* vxi11_instr)
 {
 
-	Create_LinkParms create_link_parms;
-	Create_LinkResp create_link_resp;
+	//Create_LinkParms create_link_parms;
+	//Create_LinkResp create_link_resp;
 
 	rpc_msg_call_t rpc_msg_call;
 	rpc_header_t rpc_header;
@@ -38,18 +38,18 @@ Create_LinkResp vxi11_create_link(vxi11_instr_t* vxi11_instr)
 
 	rpc_tcp_call_parser(vxi11_instr->core.netbuf.data, vxi11_instr->core.netbuf.len, &rpc_msg_call, &rpc_header);
 
-	if(ERR_OK == vxi11_create_link_parser(vxi11_instr->core.netbuf.data, vxi11_instr->core.netbuf.len, &create_link_parms))
+	if(ERR_OK == vxi11_create_link_parser(vxi11_instr->core.netbuf.data, vxi11_instr->core.netbuf.len, &vxi11_instr->core.create_link_parms))
 	{
 
-		create_link_resp = create_link(&create_link_parms);
+		vxi11_instr->core.create_link_resp = create_link(&vxi11_instr->core.create_link_parms);
 
-		memcpy(&vxi11_instr->core.create_link_parms,&create_link_parms,sizeof(Create_LinkParms));
-		memcpy(&vxi11_instr->core.create_link_resp,&create_link_resp,sizeof(Create_LinkResp));
+	//	memcpy(&vxi11_instr->core.create_link_parms,&create_link_parms,sizeof(Create_LinkParms));
+	//	memcpy(&vxi11_instr->core.create_link_resp,&create_link_resp,sizeof(Create_LinkResp));
 
 		rpc_msg_reply_t rpc_msg_reply = rpc_reply(rpc_msg_call.rm_xid, MSG_ACCEPTED);
 
 		size_t sizes[] = {sizeof(rpc_header_t), sizeof(rpc_msg_reply_t), sizeof(Create_LinkResp)};
-		void *sources[] = { &rpc_header, &rpc_msg_reply, &create_link_resp};
+		void *sources[] = { &rpc_header, &rpc_msg_reply, &vxi11_instr->core.create_link_resp};
 
 		vxi11_instr->core.netbuf.len = rpc_sum_size(sizes, sizeof(sizes)/sizeof(sizes[0]));
 
@@ -61,81 +61,11 @@ Create_LinkResp vxi11_create_link(vxi11_instr_t* vxi11_instr)
 		rpc_copy_memory(vxi11_instr->core.netbuf.data, sources, sizes, sizeof(sizes)/sizeof(sizes[0]));
 
 		netconn_write(vxi11_instr->core.netconn.newconn, vxi11_instr->core.netbuf.data, vxi11_instr->core.netbuf.len, NETCONN_NOFLAG);
-		HAL_Delay(1);
+
+		vTaskDelay(pdMS_TO_TICKS(10));
 	}
 
-	return create_link_resp;
-}
-
-void vxi11_core_connect(vxi11_instr_t* vxi11_instr)
-{
-	struct netconn *newconn;
-	struct netbuf* buf;
-
-	netconn_data_t netconn_call;
-	netconn_data_t netconn_reply;
-
-	err_t err = ERR_OK;
-
-	rpc_msg_call_t rpc_msg_call;
-	rpc_header_t rpc_header;
-
-	err = netconn_accept(vxi11_instr->core.netconn.conn, &newconn);
-
-	if(ERR_OK == err)
-	{
-		vxi11_instr->core.netconn.newconn = newconn;
-
-
-		err = netconn_recv(vxi11_instr->core.netconn.newconn, &buf);
-
-		if(err != ERR_OK)
-		{
-			vxi11_instr->state = VXI11_RECV_ERR;
-			netconn_close(vxi11_instr->core.netconn.newconn);
-
-		}
-
-		netbuf_data(buf, &netconn_call.buffer, &netconn_call.len);
-
-		rpc_tcp_call_parser(netconn_call.buffer, netconn_call.len, &rpc_msg_call, &rpc_header);
-
-		if(DEVICE_CORE == rpc_msg_call.ru.RM_cmb.cb_prog)
-		{
-			if(CREATE_LINK == rpc_msg_call.ru.RM_cmb.cb_proc)
-			{
-				if(ERR_OK == vxi11_create_link_parser(netconn_call.buffer, netconn_call.len, &vxi11_instr->core.create_link_parms))
-				{
-					vxi11_instr->core.create_link_resp = create_link(&vxi11_instr->core.create_link_parms);
-
-					rpc_msg_reply_t rpc_msg_reply = rpc_reply(rpc_msg_call.rm_xid, MSG_ACCEPTED);
-
-
-					size_t sizes[] = {sizeof(rpc_header_t), sizeof(rpc_msg_reply_t), sizeof(Create_LinkResp)};
-					void *sources[] = { &rpc_header, &rpc_msg_reply, &vxi11_instr->core.create_link_resp};
-
-					netconn_reply.len = rpc_sum_size(sizes, sizeof(sizes)/sizeof(sizes[0]));
-
-					rpc_header.data = (netconn_reply.len - sizes[0]) | RPC_HEADER_LAST;
-					rpc_header.data = htonl(rpc_header.data);
-
-					netconn_reply.buffer = (char*)malloc(netconn_reply.len);
-
-					rpc_copy_memory(netconn_reply.buffer, sources, sizes, sizeof(sizes)/sizeof(sizes[0]));
-
-					netconn_write(vxi11_instr->core.netconn.newconn, netconn_reply.buffer, netconn_reply.len, NETCONN_NOFLAG);
-					HAL_Delay(1);
-
-					free(netconn_reply.buffer);
-				}
-
-			}
-		}
-
-		netbuf_delete(buf);
-
-	}
-
+	return vxi11_instr->core.create_link_resp;
 }
 
 
