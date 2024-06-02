@@ -10,24 +10,24 @@
 #include "string.h"
 #include "stddef.h"
 #include "cmsis_os.h"
-#include "err.h"
-#include "ip_addr.h"
 #include "udp.h"
 #include "api.h"
 #include "def.h"
-#include "socket.h"
 
 #include "rpc.h"
 #include "portmap.h"
 #include "vxi11core.h"
 #include "vxi11.h"
 
+
+#define VXI11_THREAD_STACKSIZE	1024
+
 TaskHandle_t vxi11_core_handler;
-uint32_t vxi11_core_buffer[DEFAULT_THREAD_STACKSIZE];
+uint32_t vxi11_core_buffer[VXI11_THREAD_STACKSIZE];
 StaticTask_t vxi11_core_control_block;
 
 TaskHandle_t vxi11_abort_handler;
-uint32_t vxi11_abort_buffer[DEFAULT_THREAD_STACKSIZE/2];
+uint32_t vxi11_abort_buffer[VXI11_THREAD_STACKSIZE/2];
 StaticTask_t vxi11_abort_control_block;
 
 typedef enum
@@ -247,7 +247,7 @@ void vxi11_server_start(void)
 	vxi11_init(&vxi11_instr);
 
 	vxi11_core_handler = xTaskCreateStatic(vxi11_core_task,"vxi11_core_task",
-			DEFAULT_THREAD_STACKSIZE, (void*)1, tskIDLE_PRIORITY + 3,
+			VXI11_THREAD_STACKSIZE, (void*)1, tskIDLE_PRIORITY + 3,
 			vxi11_core_buffer, &vxi11_core_control_block);
 /*
 	vxi11_abort_handler = xTaskCreateStatic(vxi11_abort_task,"vxi11_abort_task",

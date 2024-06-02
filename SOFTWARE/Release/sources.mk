@@ -22,6 +22,8 @@ C_DEPS :=
 
 # Every subdirectory with source files must be described here
 SUBDIRS := \
+Core/SCPI \
+Core/SCPI/libscpi/src \
 Core/Src \
 Core/Startup \
 Core/VXI11/Src \

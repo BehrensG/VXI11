@@ -8,6 +8,9 @@
 #ifndef VXI11_INC_VXI11CORE_H_
 #define VXI11_INC_VXI11CORE_H_
 
+#include "arch.h"
+#include "ip_addr.h"
+#include "err.h"
 
 #define VXI11_MAX_RECV_SIZE		1024
 #define VXI11_MAX_DEVICE_NAME	256

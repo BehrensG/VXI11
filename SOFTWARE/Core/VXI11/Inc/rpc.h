@@ -8,6 +8,10 @@
 #ifndef VXI11_INC_RPC_H_
 #define VXI11_INC_RPC_H_
 
+#include "arch.h"
+#include "ip_addr.h"
+#include "err.h"
+
 #define RPC_MSG_VERSION		((u32_t) 2)
 #define RPC_SERVICE_PORT	((u16_t) 2048)
 

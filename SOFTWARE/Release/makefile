@@ -28,6 +28,8 @@ RM := rm -rf
 -include Core/VXI11/Src/subdir.mk
 -include Core/Startup/subdir.mk
 -include Core/Src/subdir.mk
+-include Core/SCPI/libscpi/src/subdir.mk
+-include Core/SCPI/subdir.mk
 -include objects.mk
 
 ifneq ($(MAKECMDGOALS),clean)
